@@ -1,0 +1,1201 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Проверка данных модели РУ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column — upload panel, then a results ledger (controls → AI → findings) */
+:root {
+  --bg: #f2f4f3; --surface: #ffffff; --ink: #17211f; --muted: #5d6b67; --line: #d9e0dd;
+  --accent: #14594d; --accent-ink: #ffffff; --accent-soft: #e2efeb;
+  --crit: #b42318; --crit-soft: #fde8e6; --high: #a15c07; --high-soft: #fdf1dc; --med: #1f5fa8; --med-soft: #e5eefa; --ok: #1d7a46; --ok-soft: #e1f3e8;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1514; --surface: #171f1d; --ink: #e5ece9; --muted: #96a6a1; --line: #2a3532;
+  --accent: #5fbfa9; --accent-ink: #0b1312; --accent-soft: #1b2e2a;
+  --crit: #f38b80; --crit-soft: #3a1c19; --high: #e6ad5c; --high-soft: #36280f; --med: #8ab6ec; --med-soft: #172739; --ok: #6fcf97; --ok-soft: #14301f; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #171f1d; --ink: #e5ece9; --muted: #96a6a1; --line: #2a3532;
+  --accent: #5fbfa9; --accent-ink: #0b1312; --accent-soft: #1b2e2a;
+  --crit: #f38b80; --crit-soft: #3a1c19; --high: #e6ad5c; --high-soft: #36280f; --med: #8ab6ec; --med-soft: #172739; --ok: #6fcf97; --ok-soft: #14301f; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: grid; gap: 22px; }
+header h1 { font: 600 clamp(26px, 4vw, 36px)/1.1 var(--f-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 8px 0 0; color: var(--muted); max-width: 68ch; }
+.eyebrow { font: 500 12px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; min-width: 0; }
+.panel h2 { font: 600 19px/1.2 var(--f-display); margin: 0 0 14px; }
+.drops { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.drop { position: relative; border: 1.5px dashed var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; cursor: pointer; transition: border-color .15s, background .15s; min-width: 0; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop.has { border-style: solid; border-color: var(--accent); }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop input:focus-visible + .tag { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drop .tag { font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.drop .ttl { font-weight: 600; }
+.drop .fname { font: 13px var(--f-mono); color: var(--accent); overflow-wrap: anywhere; }
+.drop .fsize { font-size: 12px; color: var(--muted); }
+.params { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 16px; align-items: end; }
+.params label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.params input { font: 14px var(--f-mono); padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); width: 110px; }
+.params input.w { width: 120px; }
+.params input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.runrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 18px; }
+button { font: 600 15px var(--f-body); border-radius: 7px; padding: 10px 18px; border: 1px solid var(--accent); cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); }
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { color: var(--muted); font-size: 13px; }
+.privacy { font-size: 13px; color: var(--muted); margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.how div { min-width: 0; }
+.how b { font: 600 15px var(--f-display); display: block; margin-bottom: 4px; }
+.how p { margin: 0; color: var(--muted); font-size: 14px; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 10px 0; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+pre#log { font: 12px/1.6 var(--f-mono); color: var(--muted); white-space: pre-wrap; margin: 0; max-height: 160px; overflow: auto; }
+.reshead { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.reshead h2 { margin: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.kpi.ok { border-top-color: var(--ok); } .kpi.bad { border-top-color: var(--crit); } .kpi.warn { border-top-color: var(--high); }
+.kpi .lbl { font-size: 12px; color: var(--muted); }
+.kpi b { font: 600 24px/1.2 var(--f-display); font-variant-numeric: tabular-nums; }
+.kpi .sub { font-size: 12px; color: var(--muted); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px 0 6px; vertical-align: 1px; }
+.dot.crit { background: var(--crit); } .dot.high { background: var(--high); } .dot.med { background: var(--med); }
+.two { display: grid; grid-template-columns: 1fr; gap: 16px; }
+#flow td:first-child, #recon td:first-child, #flow td:nth-child(2) { white-space: nowrap; }
+#flow table { max-width: 860px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font: 500 11px var(--f-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.n { font-family: var(--f-mono); font-size: 12.5px; }
+code { font: 12px var(--f-mono); }
+.cap { font-size: 12.5px; color: var(--muted); margin: 8px 0; }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--crit-soft); color: var(--crit); } .pill.warn { background: var(--high-soft); color: var(--high); }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; }
+.filters select, .filters input { font: 13px var(--f-body); padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); max-width: 100%; }
+.filters input { min-width: 0; flex: 1 1 200px; }
+.ft td { font-size: 13px; }
+.ft tr.crit td:first-child { box-shadow: inset 3px 0 var(--crit); } .ft tr.high td:first-child { box-shadow: inset 3px 0 var(--high); } .ft tr.med td:first-child { box-shadow: inset 3px 0 var(--med); }
+.sev { font-size: 12px; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
+.sev.crit { background: var(--crit-soft); color: var(--crit); } .sev.high { background: var(--high-soft); color: var(--high); } .sev.med { background: var(--med-soft); color: var(--med); } .sev.info { background: var(--bg); color: var(--muted); }
+.obj { min-width: 220px; max-width: 420px; overflow-wrap: anywhere; }
+.drv, .met, .yr { display: block; font-size: 11.5px; color: var(--muted); }
+.met { font-family: var(--f-mono); margin-top: 2px; }
+.ai { display: grid; gap: 10px; }
+#aiOut { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; max-width: 80ch; }
+#aiOut h4 { font: 600 16px var(--f-display); margin: 16px 0 6px; }
+#aiOut p, #aiOut li { margin: 4px 0; }
+#aiOut ul { padding-left: 20px; margin: 4px 0; }
+.warn-t { color: var(--high); }
+.ta { width: 100%; box-sizing: border-box; font: 13px/1.5 var(--f-body); padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); resize: vertical; }
+.ta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+details summary { cursor: pointer; font: 600 17px var(--f-display); }
+details[open] summary { margin-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Раздельный учёт · контроль качества данных</div>
+    <h1>Проверка данных модели РУ</h1>
+    <p>Загрузите выгрузки модели за два периода и свод отчётности. Страница проверит баланс по этапам, сверит модель со сводом, найдёт аномалии правилами и машинным обучением и соберёт отчёт Excel.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="upTitle">
+    <h2 id="upTitle">Файлы</h2>
+    <div class="drops">
+      <label class="drop" id="dz-cur"><input type="file" id="fileCur" accept=".xlsx"><span class="tag">Обязательно</span><span class="ttl">Модель: текущий период</span><span class="fname">Выберите или перетащите .xlsx</span><span class="fsize">например, 2026_полугодие.xlsx</span></label>
+      <label class="drop" id="dz-prev"><input type="file" id="filePrev" accept=".xlsx"><span class="tag">Обязательно</span><span class="ttl">Модель: прошлый период</span><span class="fname">Выберите или перетащите .xlsx</span><span class="fsize">например, 2025_год.xlsx</span></label>
+      <label class="drop" id="dz-svod"><input type="file" id="fileSvod" accept=".xlsx,.xls"><span class="tag">Для сверки</span><span class="ttl">Свод отчётности</span><span class="fname">Выберите или перетащите .xlsx</span><span class="fsize">листы All, В_разрезе_филиалов, ГТС_СТС</span></label>
+    </div>
+    <div class="params">
+      <label for="yCur">Текущий период<input id="yCur" class="w" value="2026 H1"></label>
+      <label for="yPrev">Прошлый период<input id="yPrev" class="w" value="2025"></label>
+      <label for="mCur">Месяцев (тек.)<input id="mCur" value="6" inputmode="numeric"></label>
+      <label for="mPrev">Месяцев (прошл.)<input id="mPrev" value="12" inputmode="numeric"></label>
+      <label for="kVal">Коэффициент k<input id="kVal" value="0,5" inputmode="decimal"></label>
+      <label for="mat">Существенность, млн ₸<input id="mat" value="10" inputmode="decimal"></label>
+    </div>
+    <div class="runrow">
+      <button class="primary" id="runBtn" disabled>Проверить</button>
+      <span class="hint" id="runHint">Выберите файлы текущего и прошлого периода.</span>
+    </div>
+    <p class="privacy">Файлы обрабатываются в вашем браузере и никуда не загружаются. Для выводов ИИ в Claude передаётся только сводка и 40 главных находок. Проверка двух файлов по 60 МБ занимает меньше минуты.</p>
+  </section>
+
+  <section class="panel" id="progress" hidden aria-live="polite">
+    <h2>Выполнение</h2>
+    <div class="hint" id="pStatus"></div>
+    <div class="bar"><i id="bar"></i></div>
+    <pre id="log"></pre>
+  </section>
+
+  <section id="results" hidden>
+    <div class="wrap" style="padding:0">
+      <div class="reshead"><h2 style="font:600 24px/1.2 var(--f-display)">Результат</h2>
+        <div class="runrow" style="margin:0"><button class="primary" id="dlBtn">Скачать отчёт Excel</button><span class="hint" id="dlNote"></span></div></div>
+      <div class="panel" id="copyExport" hidden>
+        <h2>Отчёт через буфер обмена</h2>
+        <p class="hint" style="margin:0 0 10px">Скачивать файлы со страницы могут только участники организации её владельца. Нажмите на лист, затем вставьте его в Excel в ячейку A1 (Ctrl+V). Полную версию со скачиванием можно получить у владельца страницы одним HTML-файлом: он открывается в Chrome или Edge без установки.</p>
+        <div class="runrow" style="margin:0" id="copyBtns"></div>
+        <p class="hint" id="copyNote"></p>
+        <textarea id="copyArea" class="ta" rows="4" readonly hidden aria-label="Данные листа"></textarea>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="two">
+        <div class="panel"><h2>Баланс этапов</h2><div class="scroll" id="flow"></div></div>
+        <div class="panel"><h2>Сверка со сводом</h2><div class="scroll" id="recon"></div></div>
+      </div>
+      <div class="panel ai">
+        <h2 style="margin:0">Выводы ИИ</h2>
+        <p class="hint" style="margin:0">Claude сгруппирует находки в проблемы, назовёт вероятные причины и действия. Заключение попадёт в отчёт Excel на лист «Выводы ИИ», если сформировать его до скачивания.</p>
+        <div class="runrow" style="margin:0"><button class="ghost" id="aiBtn">Сформировать выводы ИИ</button><button class="ghost" id="aiStop" hidden>Остановить</button><span class="hint" id="aiNote"></span></div>
+        <div id="aiManual" class="ai" hidden>
+          <p class="hint" style="margin:0">Страница открыта вне Claude, поэтому выводы ИИ формируются в два шага: скопируйте запрос и отправьте его в чат ИИ, затем вставьте ответ сюда.</p>
+          <div class="runrow" style="margin:0"><button class="ghost" id="aiCopy">1. Скопировать запрос для ИИ</button><button class="ghost" id="aiApply">2. Добавить ответ в отчёт</button></div>
+          <span class="hint" id="aiCopyNote"></span>
+          <textarea id="aiPrompt" class="ta" rows="4" readonly hidden aria-label="Запрос для ИИ"></textarea>
+          <textarea id="aiPaste" class="ta" rows="6" placeholder="Вставьте сюда ответ ИИ" aria-label="Ответ ИИ"></textarea>
+        </div>
+        <div id="aiOut" hidden></div>
+      </div>
+      <div class="panel">
+        <h2>Находки</h2>
+        <div class="filters">
+          <select id="fRule" aria-label="Правило"></select>
+          <select id="fSev" aria-label="Критичность"><option value="">Любая критичность</option><option>Критично</option><option>Высокий</option><option>Средний</option><option>Инфо</option></select>
+          <input id="fText" placeholder="Поиск по коду, названию, описанию" aria-label="Поиск">
+          <span class="hint" id="fCount"></span>
+        </div>
+        <div class="scroll" id="findings"></div>
+      </div>
+      <details class="panel"><summary>Правила проверки</summary><div class="scroll" id="rules"></div></details>
+    </div>
+  </section>
+
+  <section class="panel" id="howto">
+    <h2>Как это работает</h2>
+    <div class="how">
+      <div><b>1. Загрузите файлы</b><p>Две выгрузки модели (все связи, включая нулевые) и свод отчётности в формате .xlsx.</p></div>
+      <div><b>2. Нажмите «Проверить»</b><p>Сквозной баланс, сверка со сводом, 13 правил сопоставимости и модель Isolation Forest.</p></div>
+      <div><b>3. Разберите находки</b><p>Сформируйте выводы ИИ, скачайте отчёт и проставьте статусы в колонке «Статус проверки».</p></div>
+    </div>
+  </section>
+</div>
+
+<script type="text/plain" id="worker-src">
+/* DQ-checker worker: streaming xlsx reader + checks (R00–R13, S01–S05, ML) */
+'use strict';
+const post = (type, data) => self.postMessage({ type, ...data });
+const log = (msg) => post('log', { msg });
+
+/* ---------------- ZIP / XLSX streaming reader ---------------- */
+async function zipEntries(file) {
+  const size = file.size;
+  const tailLen = Math.min(size, 65557);
+  const tail = new DataView(await file.slice(size - tailLen).arrayBuffer());
+  let eocd = -1;
+  for (let i = tailLen - 22; i >= 0; i--) if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error(`«${file.name}» не похож на файл .xlsx. Сохраните его в Excel как «Книга Excel (.xlsx)».`);
+  let n = tail.getUint16(eocd + 10, true), cdSize = tail.getUint32(eocd + 12, true), cdOff = tail.getUint32(eocd + 16, true);
+  if (cdOff === 0xFFFFFFFF || n === 0xFFFF || cdSize === 0xFFFFFFFF) {
+    const loc = eocd - 20;
+    if (loc >= 0 && tail.getUint32(loc, true) === 0x07064b50) {
+      const z64off = Number(tail.getBigUint64(loc + 8, true));
+      const z = new DataView(await file.slice(z64off, z64off + 56).arrayBuffer());
+      n = Number(z.getBigUint64(32, true)); cdSize = Number(z.getBigUint64(40, true)); cdOff = Number(z.getBigUint64(48, true));
+    }
+  }
+  const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
+  const dec = new TextDecoder();
+  const entries = {};
+  let p = 0;
+  while (p + 46 <= cd.byteLength && cd.getUint32(p, true) === 0x02014b50) {
+    const method = cd.getUint16(p + 10, true);
+    let csize = cd.getUint32(p + 20, true), usize = cd.getUint32(p + 24, true);
+    const nlen = cd.getUint16(p + 28, true), elen = cd.getUint16(p + 30, true), clen = cd.getUint16(p + 32, true);
+    let off = cd.getUint32(p + 42, true);
+    const name = dec.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nlen));
+    let e = p + 46 + nlen; const eEnd = e + elen;
+    while (e + 4 <= eEnd) {
+      const id = cd.getUint16(e, true), sz = cd.getUint16(e + 2, true);
+      if (id === 1) {
+        let q = e + 4;
+        if (usize === 0xFFFFFFFF) { usize = Number(cd.getBigUint64(q, true)); q += 8; }
+        if (csize === 0xFFFFFFFF) { csize = Number(cd.getBigUint64(q, true)); q += 8; }
+        if (off === 0xFFFFFFFF) { off = Number(cd.getBigUint64(q, true)); q += 8; }
+      }
+      e += 4 + sz;
+    }
+    entries[name.replace(/^\//, '')] = { method, csize, usize, off };
+    p = eEnd + clen;
+  }
+  return entries;
+}
+
+async function entryStream(file, e) {
+  const h = new DataView(await file.slice(e.off, e.off + 30).arrayBuffer());
+  const start = e.off + 30 + h.getUint16(26, true) + h.getUint16(28, true);
+  let s = file.slice(start, start + e.csize).stream();
+  if (e.method === 8) s = s.pipeThrough(new DecompressionStream('deflate-raw'));
+  else if (e.method !== 0) throw new Error('Неподдерживаемое сжатие внутри xlsx');
+  return s.pipeThrough(new TextDecoderStream());
+}
+async function entryText(file, e) {
+  const r = (await entryStream(file, e)).getReader(); const parts = [];
+  for (;;) { const { done, value } = await r.read(); if (done) break; parts.push(value); }
+  return parts.join('');
+}
+const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+function xd(s) {
+  if (s.indexOf('&') < 0) return s;
+  return s.replace(/&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);/g, (m, g) =>
+    g[0] === '#' ? String.fromCodePoint(g[1] === 'x' ? parseInt(g.slice(2), 16) : parseInt(g.slice(1), 10)) : ENT[g]);
+}
+function attr(s, name) { const m = new RegExp('\\b' + name + '="([^"]*)"').exec(s); return m ? xd(m[1]) : null; }
+function colIdx(letters) { let n = 0; for (let i = 0; i < letters.length; i++) n = n * 26 + letters.charCodeAt(i) - 64; return n - 1; }
+
+async function openWorkbook(file) {
+  const entries = await zipEntries(file);
+  if (!entries['xl/workbook.xml']) throw new Error(`«${file.name}»: в файле нет книги Excel.`);
+  const wbx = await entryText(file, entries['xl/workbook.xml']);
+  const rels = entries['xl/_rels/workbook.xml.rels'] ? await entryText(file, entries['xl/_rels/workbook.xml.rels']) : '';
+  const relMap = {};
+  for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) relMap[attr(m[0], 'Id')] = attr(m[0], 'Target');
+  const sheets = [];
+  for (const m of wbx.matchAll(/<sheet\b[^>]*>/g)) {
+    const rid = attr(m[0], 'r:id') || attr(m[0], 'id');
+    let t = relMap[rid] || ''; t = t.startsWith('/') ? t.slice(1) : 'xl/' + t.replace(/^\.\//, '');
+    sheets.push({ name: attr(m[0], 'name'), path: t });
+  }
+  let ss = [];
+  if (entries['xl/sharedStrings.xml']) {
+    const txt = await entryText(file, entries['xl/sharedStrings.xml']);
+    for (const m of txt.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
+      const body = m[1].replace(/<rPh\b[\s\S]*?<\/rPh>/g, '');
+      let s = ''; for (const t of body.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)) s += t[1];
+      ss.push(xd(s));
+    }
+  }
+  return { file, entries, sheets, ss };
+}
+
+/** Stream a sheet; onRow(cells[]) per row. Returns row count. */
+async function readSheet(wb, sheet, onRow, onProgress) {
+  const e = wb.entries[sheet.path];
+  if (!e) throw new Error(`Лист «${sheet.name}» не найден в файле.`);
+  const reader = (await entryStream(wb.file, e)).getReader();
+  const rowRe = /<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g;
+  const cellRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  const ss = wb.ss; let buf = '', rows = 0, lastTick = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (value) buf += value;
+    let end;
+    if (done) end = buf.length;
+    else { end = buf.lastIndexOf('</row>'); if (end < 0) continue; end += 6; }
+    const part = buf.slice(0, end); buf = buf.slice(end);
+    rowRe.lastIndex = 0; let m;
+    while ((m = rowRe.exec(part))) {
+      const inner = m[1]; const cells = [];
+      if (inner) {
+        let ci = 0, c; cellRe.lastIndex = 0;
+        while ((c = cellRe.exec(inner))) {
+          const a = c[1];
+          const ri = a.indexOf(' r="');
+          if (ri >= 0) { let j = ri + 4, k = j; while (a.charCodeAt(k) >= 65 && a.charCodeAt(k) <= 90) k++; ci = colIdx(a.slice(j, k)); }
+          const ti = a.indexOf(' t="'); const t = ti >= 0 ? a.slice(ti + 4, a.indexOf('"', ti + 4)) : 'n';
+          const body = c[2]; let v = null;
+          if (body) {
+            if (t === 'inlineStr') { let s = ''; for (const tt of body.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)) s += tt[1]; v = xd(s); }
+            else {
+              const vs = body.indexOf('<v>');
+              if (vs >= 0) {
+                const raw = body.slice(vs + 3, body.indexOf('</v>', vs));
+                v = t === 's' ? ss[+raw] : (t === 'str' || t === 'e') ? xd(raw) : t === 'b' ? raw === '1' : +raw;
+              }
+            }
+          }
+          cells[ci] = v; ci++;
+        }
+      }
+      onRow(cells); rows++;
+    }
+    if (onProgress && rows - lastTick > 20000) { lastTick = rows; onProgress(rows); }
+    if (done) break;
+  }
+  return rows;
+}
+
+/* ---------------- string pool & year data ---------------- */
+const POOL = new Map(), STR = [];
+function sid(s) {
+  s = s == null ? '' : (typeof s === 'number' ? (Number.isInteger(s) ? String(s) : String(s)) : String(s).trim());
+  let id = POOL.get(s); if (id === undefined) { id = STR.length; STR.push(s); POOL.set(s, id); } return id;
+}
+const TXT = ['DriverName', 'srcRef1', 'srcRef2', 'srcName2', 'srcRef4', 'srcName4', 'dstRef1', 'dstRef2', 'dstName2', 'dstRef4', 'dstName4'];
+const NUM = ['DQF', 'DWF', 'SourceCost', 'Cost', 'SQ', 'Revenue'];
+
+async function loadYear(file, label) {
+  log(`Открываю ${label}: ${file.name} (${(file.size / 1048576).toFixed(0)} МБ)`);
+  const wb = await openWorkbook(file);
+  const sheet = wb.sheets[0];
+  let cap = 1 << 16, n = 0, colMap = null;
+  const T = {}, N = {};
+  const alloc = (c) => { for (const k of TXT) { const a = new Int32Array(c); if (T[k]) a.set(T[k].subarray(0, n)); T[k] = a; }
+    for (const k of NUM) { const a = new Float64Array(c); if (N[k]) a.set(N[k].subarray(0, n)); N[k] = a; } };
+  alloc(cap);
+  const t0 = Date.now();
+  await readSheet(wb, sheet, (cells) => {
+    if (!colMap) {
+      colMap = {};
+      cells.forEach((h, i) => { if (h == null) return; const k = String(h).trim().replace(/_\d{4}$/, ''); if (!(k in colMap)) colMap[k] = i; });
+      const miss = [...TXT, ...NUM].filter((k) => !(k in colMap));
+      if (miss.length) throw new Error(`«${file.name}»: не найдены колонки ${miss.join(', ')}. Нужен формат выгрузки модели (как в шаблоне).`);
+      return;
+    }
+    if (!cells.length) return;
+    if (n === cap) { cap *= 2; alloc(cap); }
+    for (const k of TXT) T[k][n] = sid(cells[colMap[k]]);
+    for (const k of NUM) { const v = cells[colMap[k]]; N[k][n] = v == null || v === '' ? NaN : +v; }
+    n++;
+  }, (r) => post('progress', { label, rows: r, sec: (Date.now() - t0) / 1000 }));
+  if (!colMap) throw new Error(`«${file.name}»: лист пустой.`);
+  for (const k of TXT) T[k] = T[k].subarray(0, n);
+  for (const k of NUM) N[k] = N[k].subarray(0, n);
+  log(`${label}: прочитано ${n.toLocaleString('ru-RU')} связей за ${((Date.now() - t0) / 1000).toFixed(0)} с`);
+  return { n, T, N, name: file.name };
+}
+
+async function loadSvod(file) {
+  log(`Открываю свод: ${file.name}`);
+  const wb = await openWorkbook(file);
+  const out = {};
+  for (const sh of wb.sheets) {
+    let hdr = null; const rows = [];
+    await readSheet(wb, sh, (cells) => {
+      if (!hdr) { hdr = cells.map((h) => (h == null ? null : String(h).trim())); return; }
+      const o = {}; hdr.forEach((h, i) => { if (h) o[h] = cells[i] == null ? null : cells[i]; }); rows.push(o);
+    });
+    out[sh.name] = rows;
+  }
+  if (!out['All']) throw new Error(`В своде нет листа «All». Ожидаются листы All, В_разрезе_филиалов, ГТС_СТС.`);
+  return out;
+}
+
+/* ---------------- helpers ---------------- */
+const SEV_W = { 'Критично': 4, 'Высокий': 3, 'Средний': 2, 'Инфо': 1 };
+const fmt0 = (v) => (v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('ru-RU'));
+const fmt2 = (v) => (v == null || !isFinite(v) ? '—' : v.toLocaleString('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }));
+const fx = (v) => (v == null || !isFinite(v) ? '—' : '×' + v.toLocaleString('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 }));
+const pct = (v) => (v == null || !isFinite(v) ? '—' : (v * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + '%');
+const stageNum = (s) => { const m = /(\d+)/.exec(s); return m ? +m[1] : 99; };
+const median = (a) => { const b = a.filter((x) => isFinite(x) && x > 0).sort((x, y) => x - y); if (!b.length) return 1; const h = b.length >> 1; return b.length % 2 ? b[h] : (b[h - 1] + b[h]) / 2; };
+
+function makeFindings() {
+  const rows = [];
+  return {
+    rows,
+    add(rule, sev, level, obj, driver, impact, metric, desc, year = '', extra = null) {
+      impact = isFinite(impact) ? impact : 0;
+      rows.push({ rule, sev, level, year, obj, driver: driver || '', impact, metric, desc, score: SEV_W[sev] * Math.log10(1 + Math.abs(impact)), ...(extra || {}) });
+    },
+  };
+}
+
+/* ---------------- Isolation Forest ---------------- */
+function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const cN = (n) => (n > 2 ? 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1)) / n : n === 2 ? 1 : 0);
+function isolationForest(X, contamination = 0.03, nTrees = 300, sub = 256, seed = 42) {
+  const n = X.length; if (n < 10) return { score: X.map(() => 0), flag: X.map(() => false) };
+  const d = X[0].length, rnd = mulberry32(seed), psi = Math.min(sub, n), maxD = Math.ceil(Math.log2(psi));
+  const build = (idx, depth) => {
+    if (depth >= maxD || idx.length <= 1) return { leaf: true, size: idx.length };
+    const lo = new Array(d).fill(Infinity), hi = new Array(d).fill(-Infinity);
+    for (const i of idx) for (let f = 0; f < d; f++) { const v = X[i][f]; if (v < lo[f]) lo[f] = v; if (v > hi[f]) hi[f] = v; }
+    const live = []; for (let f = 0; f < d; f++) if (hi[f] > lo[f]) live.push(f);
+    if (!live.length) return { leaf: true, size: idx.length };
+    const q = live[Math.floor(rnd() * live.length)], mn = lo[q], mx = hi[q];
+    const p = mn + rnd() * (mx - mn); const L = [], R = [];
+    for (const i of idx) (X[i][q] < p ? L : R).push(i);
+    return { q, p, l: build(L, depth + 1), r: build(R, depth + 1) };
+  };
+  const trees = [];
+  for (let t = 0; t < nTrees; t++) {
+    const s = []; const used = new Set();
+    while (s.length < psi) { const i = Math.floor(rnd() * n); if (!used.has(i)) { used.add(i); s.push(i); } }
+    trees.push(build(s, 0));
+  }
+  const cn = cN(psi);
+  const score = X.map((x) => {
+    let tot = 0;
+    for (const tr of trees) { let node = tr, h = 0; while (!node.leaf) { node = x[node.q] < node.p ? node.l : node.r; h++; } tot += h + cN(node.size); }
+    return Math.pow(2, -(tot / trees.length) / cn);
+  });
+  const sorted = [...score].sort((a, b) => b - a);
+  const thr = sorted[Math.max(0, Math.floor(n * contamination) - 1)];
+  return { score, flag: score.map((s) => s >= thr) };
+}
+const clip = (v) => (isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0);
+const slog = (v) => Math.sign(v) * Math.log1p(Math.abs(v));
+
+/* ---------------- main analysis ---------------- */
+function analyse(C, P, cfg) {
+  const F = makeFindings();
+  const M = cfg.materiality, k = cfg.k, tol = 1;
+  const S = (id) => STR[id];
+  /* merge links */
+  const key = (Y, i) => Y.T.srcRef1[i] + ',' + Y.T.srcRef2[i] + ',' + Y.T.srcRef4[i] + ',' + Y.T.dstRef1[i] + ',' + Y.T.dstRef2[i] + ',' + Y.T.dstRef4[i];
+  const map = new Map(); const ic = [], ip = []; let dupC = 0, dupP = 0;
+  for (let i = 0; i < C.n; i++) { const kk = key(C, i); if (map.has(kk)) { dupC++; continue; } map.set(kk, ic.length); ic.push(i); ip.push(-1); }
+  for (let i = 0; i < P.n; i++) { const kk = key(P, i); const m = map.get(kk); if (m === undefined) { map.set(kk, ic.length); ic.push(-1); ip.push(i); } else if (ip[m] === -1) ip[m] = i; else dupP++; }
+  map.clear();
+  if (dupC || dupP) log(`Внимание: повторяющиеся ключи связей — 2026: ${dupC}, 2025: ${dupP} (учтены первые вхождения).`);
+  const Mn = ic.length;
+  const G = (m, f) => (ic[m] >= 0 ? C.T[f][ic[m]] : P.T[f][ip[m]]);
+  const val = (Y, idx, f) => (idx >= 0 ? Y.N[f][idx] : NaN);
+  const W = (Y, idx) => { if (idx < 0) return 0; const d = Y.N.DQF[idx], w = Y.N.DWF[idx]; return (isFinite(d) ? d : 0) * (isFinite(w) ? w : 1); };
+
+  /* sources */
+  const srcIdx = new Map(); const srcOf = new Int32Array(Mn); const src = [];
+  for (let m = 0; m < Mn; m++) {
+    const kk = G(m, 'srcRef1') + ',' + G(m, 'srcRef2') + ',' + G(m, 'srcRef4');
+    let s = srcIdx.get(kk);
+    if (s === undefined) {
+      s = src.length; srcIdx.set(kk, s);
+      src.push({ s1: G(m, 'srcRef1'), s2: G(m, 'srcRef2'), s4: G(m, 'srcRef4'), n2: G(m, 'srcName2'), n4: G(m, 'srcName4'),
+        dC: -1, dP: -1, SC_C: NaN, SC_P: NaN, cost_C: 0, cost_P: 0, W_C: 0, W_P: 0, dqf_C: 0, dqf_P: 0, links: 0, newL: 0, goneL: 0, absShift: 0 });
+    }
+    srcOf[m] = s; const o = src[s]; o.links++;
+    if (ic[m] >= 0) { const i = ic[m]; if (o.dC < 0) o.dC = C.T.DriverName[i]; if (!isFinite(o.SC_C) && isFinite(C.N.SourceCost[i])) o.SC_C = C.N.SourceCost[i]; o.cost_C += C.N.Cost[i] || 0; o.W_C += W(C, i); o.dqf_C += C.N.DQF[i] || 0; }
+    if (ip[m] >= 0) { const i = ip[m]; if (o.dP < 0) o.dP = P.T.DriverName[i]; if (!isFinite(o.SC_P) && isFinite(P.N.SourceCost[i])) o.SC_P = P.N.SourceCost[i]; o.cost_P += P.N.Cost[i] || 0; o.W_P += W(P, i); o.dqf_P += P.N.DQF[i] || 0; }
+    if (ip[m] < 0) o.newL++; if (ic[m] < 0) o.goneL++;
+  }
+  for (const o of src) { if (!isFinite(o.SC_C)) o.SC_C = 0; if (!isFinite(o.SC_P)) o.SC_P = 0; o.drv = S(o.dC >= 0 ? o.dC : o.dP); o.label = `${S(o.s1)} | ${S(o.s2)} ${S(o.n2)} | ${S(o.s4)} ${S(o.n4)}`; }
+  const srcLabel = (m) => src[srcOf[m]].label;
+  const dstLabel = (m) => `${S(G(m, 'dstRef1'))} | ${S(G(m, 'dstRef2'))} ${S(G(m, 'dstName2'))} | ${S(G(m, 'dstRef4'))} ${S(G(m, 'dstName4'))}`;
+
+  /* R00 flow */
+  const stages = [...new Set([...src.map((o) => S(o.s1)), ...Array.from({ length: Mn }, (_, m) => S(G(m, 'dstRef1')))])].sort((a, b) => stageNum(a) - stageNum(b) || a.localeCompare(b));
+  const first = stages[0], last = stages[stages.length - 1];
+  const flow = [];
+  const modelIn = {}, modelOut = {};
+  for (const [Y, idxArr, yr, scKey] of [[P, ip, cfg.yPrev, 'SC_P'], [C, ic, cfg.yCur, 'SC_C']]) {
+    const scSt = {}, inSt = {}, outSt = {};
+    for (const o of src) scSt[S(o.s1)] = (scSt[S(o.s1)] || 0) + o[scKey];
+    const rec = new Map();
+    for (let m = 0; m < Mn; m++) {
+      const i = idxArr[m]; if (i < 0) continue; const c = Y.N.Cost[i] || 0;
+      const d1 = S(G(m, 'dstRef1')), s1 = S(G(m, 'srcRef1'));
+      inSt[d1] = (inSt[d1] || 0) + c; outSt[s1] = (outSt[s1] || 0) + c;
+      const dk = G(m, 'dstRef1') + ',' + G(m, 'dstRef2') + ',' + G(m, 'dstRef4'); rec.set(dk, (rec.get(dk) || 0) + c);
+    }
+    for (const st of stages) flow.push({ year: yr, stage: st, vin: st === first ? scSt[st] || 0 : inSt[st] || 0, vout: st === last ? inSt[st] || 0 : outSt[st] || 0 });
+    modelIn[yr] = scSt[first] || 0; modelOut[yr] = inSt[last] || 0;
+    if (Math.abs(modelIn[yr] - modelOut[yr]) > tol)
+      F.add('R00', 'Критично', 'Модель', `${first} → ${last}`, '', modelIn[yr] - modelOut[yr], `вход ${fmt0(modelIn[yr])} / выход ${fmt0(modelOut[yr])}`, `${yr}: затраты, вошедшие на ${first}, не равны затратам, вышедшим на ${last}.`, yr);
+    const seen = new Set();
+    for (const o of src) {
+      const st = S(o.s1); if (st === first || st === last) continue;
+      const kk = o.s1 + ',' + o.s2 + ',' + o.s4; seen.add(kk);
+      const r = rec.get(kk) || 0, d = o[scKey] - r;
+      if (Math.abs(d) > tol) F.add('R00', Math.abs(d) >= M ? 'Критично' : 'Высокий', 'Объект', o.label, o.drv, d, `получено ${fmt0(r)} / распределено ${fmt0(o[scKey])}`,
+        `${yr}: объект распределяет не ту сумму, которую получил с предыдущих этапов ` + (d > 0 ? '(затраты возникли внутри модели).' : '(затраты застряли и не дошли до услуг).'), yr);
+    }
+    for (const [kk, r] of rec) {
+      if (seen.has(kk)) continue; const [a, b, c] = kk.split(',').map(Number); if (S(a) === last || Math.abs(r) <= tol) continue;
+      F.add('R00', Math.abs(r) >= M ? 'Критично' : 'Высокий', 'Объект', `${S(a)} | ${S(b)} | ${S(c)}`, '', -r, `получено ${fmt0(r)} / распределено 0`, `${yr}: объект получил затраты, но не распределяет их дальше (затраты застряли).`, yr);
+    }
+  }
+  if (!(k > 0)) cfg.k = modelIn[cfg.yCur] / modelIn[cfg.yPrev];
+  const K = cfg.k;
+
+  /* R01 / R03 */
+  for (const o of src) {
+    for (const [sc, cs, w, yr] of [[o.SC_C, o.cost_C, o.W_C, cfg.yCur], [o.SC_P, o.cost_P, o.W_P, cfg.yPrev]]) {
+      const d = sc - cs;
+      if (Math.abs(d) > tol) F.add('R01', Math.abs(d) >= M ? 'Критично' : 'Высокий', 'Источник', o.label, o.drv, d, `SourceCost ${fmt0(sc)} vs ΣCost ${fmt0(cs)}`, `${yr}: затраты источника распределены не полностью, разница ${fmt0(d)} ₸.`, yr);
+      if (Math.abs(sc) > tol && w === 0) F.add('R03', 'Критично', 'Источник', o.label, o.drv, sc, 'Σ(DQF·DWF) = 0', `${yr}: есть затраты ${fmt0(sc)} ₸, но сумма драйвера равна 0, распределить их нельзя.`, yr);
+    }
+    o.ratioK = o.SC_P ? o.SC_C / o.SC_P / K : NaN;
+  }
+  /* R10 */
+  const [lo, hi] = cfg.band;
+  for (const o of src) {
+    if (Math.abs(o.SC_P) >= M && o.SC_C === 0) { F.add('R10', 'Высокий', 'Источник', o.label, o.drv, o.SC_P * K, `SC ${cfg.yCur} = 0`, `В ${cfg.yPrev} источник имел ${fmt0(o.SC_P)} ₸, в ${cfg.yCur} — ноль.`); continue; }
+    if (isFinite(o.ratioK) && (o.ratioK < lo || o.ratioK > hi) && Math.abs(o.SC_C - o.SC_P * K) >= M)
+      F.add('R10', 'Средний', 'Источник', o.label, o.drv, o.SC_C - o.SC_P * K, `SC/(SC прошл.·k) = ${fx(o.ratioK)}`, `Затраты источника изменились нетипично: ${fmt0(o.SC_C)} ₸ при ожидаемых ${fmt0(o.SC_P * K)} ₸ (прошлый период × k).`);
+  }
+  /* shares, TVD */
+  const shC = new Float64Array(Mn), shP = new Float64Array(Mn);
+  for (let m = 0; m < Mn; m++) {
+    const o = src[srcOf[m]];
+    shC[m] = o.W_C ? W(C, ic[m]) / o.W_C : 0; shP[m] = o.W_P ? W(P, ip[m]) / o.W_P : 0;
+    o.absShift += Math.abs(shC[m] - shP[m]);
+  }
+  for (const o of src) {
+    o.tvd = o.absShift / 2;
+    if (o.tvd >= cfg.tvd && Math.abs(o.SC_C) >= M)
+      F.add('R09', o.tvd >= 0.5 ? 'Высокий' : 'Средний', 'Источник', o.label, o.drv, o.SC_C * Math.min(o.tvd, 1), `TVD = ${fmt2(o.tvd)}`,
+        o.tvd <= 1 ? `Структура распределения источника изменилась на ${pct(o.tvd)} (доля затрат, перераспределённая между получателями).` : `Индекс сдвига ${fmt2(o.tvd)} > 1: в базе драйвера есть отрицательные веса, структура несопоставима с прошлым периодом.`);
+  }
+  /* R13 driver change */
+  for (const o of src) if (o.dC >= 0 && o.dP >= 0 && o.dC !== o.dP)
+    F.add('R13', Math.abs(o.SC_C) >= M ? 'Высокий' : 'Средний', 'Источник', o.label, S(o.dC), o.SC_C, `${S(o.dP)} → ${S(o.dC)}`, 'Сменился вид драйвера распределения, структура несопоставима с прошлым периодом.');
+
+  const lx = (m) => ({ dqfP: ip[m] >= 0 ? P.N.DQF[ip[m]] : NaN, dqfC: ic[m] >= 0 ? C.N.DQF[ic[m]] : NaN });
+  /* link-level rules */
+  const negCols = [['DQF', 'DQF'], ['Cost', 'Cost'], ['SQ', 'SQ'], ['Revenue', 'Revenue']];
+  for (const [f, lbl] of negCols) {
+    let cnt = 0, tot = 0;
+    for (let m = 0; m < Mn; m++) {
+      const i = ic[m]; if (i < 0) continue; const v = C.N[f][i]; if (!(v < 0)) continue;
+      cnt++; const imp = Math.abs(f === 'Revenue' ? v : C.N.Cost[i] || 0); tot += imp;
+      if (imp >= M / 10) F.add('R04', 'Высокий', 'Связь', `${srcLabel(m)} → ${dstLabel(m)}`, src[srcOf[m]].drv, imp, `${lbl} = ${fmt2(v)}`, `Отрицательное значение ${lbl}.`, cfg.yCur, lx(m));
+    }
+    if (cnt) F.add('R04', 'Инфо', 'Сводно', `Все строки с ${lbl} < 0`, '', tot, `${cnt} строк`, `Сводка отрицательных значений ${lbl}.`, cfg.yCur);
+  }
+  let newCnt = 0, newSum = 0, goneCnt = 0, goneSum = 0;
+  for (let m = 0; m < Mn; m++) {
+    const i = ic[m], j = ip[m]; const o = src[srcOf[m]];
+    if (j < 0) { const c = C.N.Cost[i] || 0; newCnt++; newSum += c; if (Math.abs(c) >= M) F.add('R05', 'Средний', 'Связь', `${srcLabel(m)} → ${dstLabel(m)}`, o.drv, c, `Cost = ${fmt0(c)}`, `Новая связь (в ${cfg.yPrev} отсутствовала) с существенными затратами, подтвердить обоснование.`, '', lx(m)); continue; }
+    if (i < 0) { const c = P.N.Cost[j] || 0; goneCnt++; goneSum += c; if (Math.abs(c) * K >= M) F.add('R12', 'Высокий', 'Связь', `${srcLabel(m)} → ${dstLabel(m)}`, o.drv, c * K, `Cost ${cfg.yPrev} = ${fmt0(c)}`, `Связь была в ${cfg.yPrev}, в ${cfg.yCur} отсутствует: подтвердить исключение или найти новое направление.`, '', lx(m)); continue; }
+    const dC = C.N.DQF[i] || 0, dP = P.N.DQF[j] || 0, cC = C.N.Cost[i] || 0, cP = P.N.Cost[j] || 0;
+    if (dP > 0 && dC === 0 && cP * K >= M) { F.add('R06', 'Высокий', 'Связь', `${srcLabel(m)} → ${dstLabel(m)}`, o.drv, cP * K, `DQF ${fmt2(dP)} → 0`, `Драйвер обнулился: в ${cfg.yPrev} получатель получал затраты, в ${cfg.yCur} нет.`, '', lx(m)); continue; }
+    if (dP === 0 && dC > 0 && cC >= M) { F.add('R07', 'Высокий', 'Связь', `${srcLabel(m)} → ${dstLabel(m)}`, o.drv, cC, `DQF 0 → ${fmt2(dC)}`, `Драйвер появился: в ${cfg.yPrev} было 0, в ${cfg.yCur} существенные затраты.`, '', lx(m)); continue; }
+    const sh = shC[m] - shP[m], imp = sh * o.SC_C;
+    if (Math.abs(sh) >= cfg.shift && Math.abs(imp) >= M)
+      F.add('R08', 'Средний', 'Связь', `${srcLabel(m)} → ${dstLabel(m)}`, o.drv, imp, `доля ${pct(shP[m])} → ${pct(shC[m])}`, `Доля драйвера сместилась на ${(sh * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} п.п.; эффект на затраты ${fmt0(imp)} ₸.`, '', lx(m));
+  }
+  F.add('R05', 'Инфо', 'Сводно', `Все новые связи ${cfg.yCur}`, '', newSum, `${newCnt} строк`, 'Сводка новых связей.');
+  F.add('R12', 'Инфо', 'Сводно', `Все исчезнувшие связи`, '', goneSum, `${goneCnt} строк`, `Сводка связей ${cfg.yPrev}, отсутствующих в ${cfg.yCur}.`);
+
+  /* services (last stage) */
+  const objIdx = new Map(); const obj = [];
+  for (let m = 0; m < Mn; m++) {
+    if (S(G(m, 'dstRef1')) !== last) continue;
+    const kk = G(m, 'dstRef2') + ',' + G(m, 'dstRef4');
+    let s = objIdx.get(kk);
+    if (s === undefined) { s = obj.length; objIdx.set(kk, s); obj.push({ d2: S(G(m, 'dstRef2')), n2: S(G(m, 'dstName2')), d4: S(G(m, 'dstRef4')), n4: S(G(m, 'dstName4')), cC: 0, cP: 0, sqC: NaN, sqP: NaN, rvC: NaN, rvP: NaN, drv: new Map() }); }
+    const o = obj[s];
+    { const dn = src[srcOf[m]].drv; let e = o.drv.get(dn); if (!e) { e = { cC: 0, cP: 0, dC: 0, dP: 0 }; o.drv.set(dn, e); }
+      if (ic[m] >= 0) { e.cC += Math.abs(C.N.Cost[ic[m]] || 0); e.dC += C.N.DQF[ic[m]] || 0; }
+      if (ip[m] >= 0) { e.cP += Math.abs(P.N.Cost[ip[m]] || 0); e.dP += P.N.DQF[ip[m]] || 0; } }
+    if (ic[m] >= 0) { const i = ic[m]; o.cC += C.N.Cost[i] || 0; if (!isFinite(o.sqC) && isFinite(C.N.SQ[i])) o.sqC = C.N.SQ[i]; if (!isFinite(o.rvC) && isFinite(C.N.Revenue[i])) o.rvC = C.N.Revenue[i]; }
+    if (ip[m] >= 0) { const i = ip[m]; o.cP += P.N.Cost[i] || 0; if (!isFinite(o.sqP) && isFinite(P.N.SQ[i])) o.sqP = P.N.SQ[i]; if (!isFinite(o.rvP) && isFinite(P.N.Revenue[i])) o.rvP = P.N.Revenue[i]; }
+  }
+  const svc = obj.filter((o) => { for (const f of ['sqC', 'sqP', 'rvC', 'rvP']) { if (!isFinite(o[f])) o[f] = 0; } return o.sqC || o.sqP || o.rvC || o.rvP; });
+  for (const o of svc) {
+    let best = null, bv = -1; for (const [dn, e] of o.drv) { const v = e.cC || e.cP; if (v > bv) { bv = v; best = dn; } }
+    const e = best != null ? o.drv.get(best) : null; o.mainDrv = best || ''; o.dqfP = e ? e.dP : NaN; o.dqfC = e ? e.dC : NaN; o.nDrv = o.drv.size; o.drv = null;
+  }
+  for (const o of svc) { o.label = `${last} | ${o.d2} ${o.n2} | ${o.d4} ${o.n4}`; o.ucC = o.sqC > 0 ? o.cC / o.sqC : NaN; o.ucP = o.sqP > 0 ? o.cP / o.sqP : NaN; o.ucRaw = o.ucC / o.ucP; }
+  const ucBase = median(svc.map((o) => o.ucRaw));
+  for (const o of svc) {
+    o.ucRatio = o.ucRaw / ucBase;
+    if (isFinite(o.ucRatio) && (o.ucRatio < cfg.ucBand[0] || o.ucRatio > cfg.ucBand[1]) && Math.abs(o.cC) >= M)
+      F.add('R11', 'Высокий', 'Услуга', o.label, '', o.cC - o.ucP * ucBase * o.sqC, `с/с ед. ${fmt2(o.ucP)} → ${fmt2(o.ucC)} (${fx(o.ucRaw)}; к базе ${fx(o.ucRatio)})`, `Себестоимость единицы услуги отклонилась от общей динамики (${fx(ucBase)}) более чем вдвое.`);
+    if (Math.abs(o.cC) >= M && o.sqC <= 0 && o.rvC <= 0) F.add('R11', 'Высокий', 'Услуга', o.label, '', o.cC, 'SQ = 0, Revenue = 0', 'На услугу отнесены затраты, но нет ни объёма, ни дохода.');
+    if (o.cC === 0 && o.rvC >= M) F.add('R11', 'Средний', 'Услуга', o.label, '', o.rvC, `Revenue ${fmt0(o.rvC)}, Cost 0`, 'Услуга с доходом без отнесённых затрат.');
+  }
+  /* ML */
+  const lr = (a, b) => (a > 0 && b > 0 ? Math.log(a / b) : NaN);
+  // ML обучается только на существенных объектах: «норма» — поведение сопоставимых по масштабу объектов
+  const flagged = new Set(F.rows.filter((f) => f.level === 'Услуга' || f.level === 'Источник').map((f) => f.obj));
+  svc.forEach((o) => { o.ml = NaN; o.mlFlag = false; });
+  src.forEach((o) => { o.ml = NaN; o.mlFlag = false; });
+  const svcM = svc.filter((o) => Math.max(Math.abs(o.cC), Math.abs(o.cP) * K) >= M);
+  const X1 = svcM.map((o) => [lr(o.ucC, o.ucP * ucBase), lr(o.cC / K, o.cP), lr(o.sqC / K, o.sqP), lr(o.rvC / K, o.rvP), lr(o.cC / o.rvC, o.cP / o.rvP)].map(clip));
+  const r1 = isolationForest(X1, cfg.contamination);
+  svcM.forEach((o, i) => { o.ml = r1.score[i]; o.mlFlag = r1.flag[i];
+    if (o.mlFlag && !flagged.has(o.label)) F.add('ML1', 'Средний', 'Услуга', o.label, '', o.cC, `IF-балл ${o.ml.toFixed(3)}`,
+      `ML: правила не сработали, но сочетание изменений нетипично для существенных услуг — затраты ${fx(Math.exp(X1[i][1]))}, объём ${fx(Math.exp(X1[i][2]))}, доход ${fx(Math.exp(X1[i][3]))} (к k), с/с ед. ${fx(Math.exp(X1[i][0]))}.`); });
+  const srcM = src.filter((o) => Math.max(Math.abs(o.SC_C), Math.abs(o.SC_P) * K) >= M * 10);
+  const X2 = srcM.map((o) => [lr(o.SC_C / K, o.SC_P), Math.min(o.tvd, 10) * 5, o.newL / o.links, o.goneL / o.links, slog(o.SC_P - o.cost_P) / 5].map(clip));
+  const r2 = isolationForest(X2, cfg.contamination);
+  srcM.forEach((o, i) => { o.ml = r2.score[i]; o.mlFlag = r2.flag[i];
+    if (o.mlFlag && !flagged.has(o.label)) F.add('ML2', 'Средний', 'Источник', o.label, o.drv, o.SC_C, `IF-балл ${o.ml.toFixed(3)}`,
+      `ML: правила не сработали, но источник нетипичен среди крупных — изменение затрат ${fx(Math.exp(X2[i][0]))} (к k), сдвиг структуры ${pct(Math.min(o.tvd, 1))}, новых связей ${pct(o.newL / o.links)}, исчезнувших ${pct(o.goneL / o.links)}.`); });
+
+  const bySrc = new Map(src.map((o) => [o.label, o])), bySvc = new Map(svc.map((o) => [o.label, o]));
+  for (const f of F.rows) {
+    if (f.dqfP !== undefined) continue;
+    if (f.level === 'Источник' && bySrc.has(f.obj)) { const o = bySrc.get(f.obj); f.dqfP = o.dqf_P; f.dqfC = o.dqf_C; f.dqfNote = 'Σ DQF источника'; }
+    if (f.level === 'Услуга' && bySvc.has(f.obj)) { const o = bySvc.get(f.obj); f.dqfP = o.dqfP; f.dqfC = o.dqfC; f.dqfNote = 'Σ DQF по основному драйверу услуги: ' + o.mainDrv; }
+  }
+  return { F, src, svc, flow, stages, first, last, modelIn, modelOut, ucBase, Mn, newCnt, goneCnt, newSum, goneSum };
+}
+
+/* ---------------- reconciliation with svod ---------------- */
+function modelByService(Y, last) {
+  const br = new Map(), sv = new Map();
+  for (let i = 0; i < Y.n; i++) {
+    if (STR[Y.T.dstRef1[i]] !== last) continue;
+    const d2 = STR[Y.T.dstRef2[i]], d4 = STR[Y.T.dstRef4[i]], kk = d2 + '|' + d4;
+    let b = br.get(kk); if (!b) { b = { d2, d4, Cost: 0, SQ: NaN, Revenue: NaN }; br.set(kk, b); }
+    const c = Y.N.Cost[i] || 0; b.Cost += c;
+    if (!isFinite(b.SQ) && isFinite(Y.N.SQ[i])) b.SQ = Y.N.SQ[i];
+    if (!isFinite(b.Revenue) && isFinite(Y.N.Revenue[i])) b.Revenue = Y.N.Revenue[i];
+    let s = sv.get(d4); if (!s) { s = { name: STR[Y.T.dstName4[i]], Cost: 0, SQ: 0, Revenue: 0, ElementySetiCost: 0 }; sv.set(d4, s); }
+    s.Cost += c; const s1 = stageNum(STR[Y.T.srcRef1[i]]); if (s1 === 5 || s1 === 6) s.ElementySetiCost += c;
+  }
+  for (const b of br.values()) { const s = sv.get(b.d4); s.SQ += isFinite(b.SQ) ? b.SQ : 0; s.Revenue += isFinite(b.Revenue) ? b.Revenue : 0; }
+  return { br, sv };
+}
+const nz = (v) => (v == null || v === '' || !isFinite(+v) ? 0 : +v);
+const refStr = (v) => (v == null ? '' : (typeof v === 'number' ? String(v) : String(v).trim()));
+
+function reconcile(svod, C, P, last, cfg, F) {
+  const rows = [], stat = [], svcDiff = new Map();
+  const all = svod['All'].filter((r) => refStr(r.DimMemberRef4));
+  const allTot = svod['All'].find((r) => !refStr(r.DimMemberRef4));
+  const A = new Map(all.map((r) => [refStr(r.DimMemberRef4), r]));
+  const nm = (k) => (A.get(k) ? A.get(k).dimMemberName4 || '' : '');
+  const years = [['new', C, cfg.yCur], ['old', P, cfg.yPrev]];
+  const mods = {};
+  for (const [tag, Y, yr] of years) {
+    const { br, sv } = modelByService(Y, last); mods[yr] = br;
+    const keys = new Set([...A.keys(), ...sv.keys()]);
+    for (const col of ['Cost', 'SQ', 'Revenue', 'ElementySetiCost']) {
+      let ok = 0, bad = 0, sSv = 0, sMd = 0;
+      for (const kk of keys) {
+        const a = A.get(kk), s = sv.get(kk);
+        const vs = a ? nz(a[tag + col]) : 0, vm = s ? s[col] : 0, d = vs - vm;
+        sSv += vs; sMd += vm; svcDiff.set(yr + col + kk, d);
+        const isOk = Math.abs(d) <= 1; isOk ? ok++ : bad++;
+        rows.push({ year: yr, level: 'Услуга', br: '', svc: kk, name: nm(kk) || (s ? s.name : ''), col, sv: vs, md: vm, d, ok: isOk });
+        if (isOk) continue;
+        let rule = 'S01', txt = `${yr}: ${col} в своде ${fmt0(vs)} ≠ модель ${fmt0(vm)}.`;
+        if (a && !s) { rule = 'S03'; txt = `${yr}: в своде ${col} = ${fmt0(vs)}, а услуги нет в модели (нет связей ${last}).`; }
+        if (s && !a) { rule = 'S03'; txt = `${yr}: услуга есть в модели (${col} = ${fmt0(vm)}), но её нет в своде.`; }
+        F.add(rule, col !== 'SQ' && Math.abs(d) >= cfg.materiality ? 'Критично' : 'Высокий', 'Свод', `${kk} ${nm(kk) || (s ? s.name : '')}`, '', col === 'SQ' ? 0 : d, `${col}: свод ${fmt0(vs)} / модель ${fmt0(vm)}`, txt, yr);
+      }
+      stat.push({ year: yr, col, n: ok + bad, ok, bad, sv: sSv, md: sMd, brN: null, brBad: null, brSum: null });
+    }
+  }
+  const B = svod['В_разрезе_филиалов'];
+  if (B) {
+    const brs = B.filter((r) => refStr(r.DimMemberRef4));
+    const BM = new Map(brs.map((r) => [refStr(r.DimMemberRef2) + '|' + refStr(r.DimMemberRef4), r]));
+    for (const [tag, , yr] of years) {
+      const br = mods[yr]; const keys = new Set([...BM.keys(), ...br.keys()]);
+      for (const col of ['Cost', 'SQ', 'Revenue']) {
+        let bad = 0, sum = 0; const perSvc = new Map();
+        for (const kk of keys) {
+          const r = BM.get(kk), b = br.get(kk);
+          const vs = r ? nz(r[tag + col]) : 0, vm = b && isFinite(b[col]) ? b[col] : 0, d = vs - vm;
+          if (Math.abs(d) <= 1) continue;
+          bad++; sum += Math.abs(d); const [b2, s4] = kk.split('|');
+          rows.push({ year: yr, level: 'Филиал × услуга', br: b2, svc: s4, name: nm(s4), col, sv: vs, md: vm, d, ok: false });
+          const e = perSvc.get(s4) || { n: 0, sum: 0 }; e.n++; e.sum += Math.abs(d); perSvc.set(s4, e);
+        }
+        for (const [s4, e] of perSvc) {
+          if (Math.abs(svcDiff.get(yr + col + s4) || 0) > 1) continue;
+          F.add('S02', 'Высокий', 'Свод', `${s4} ${nm(s4)}`, '', col === 'SQ' ? 0 : e.sum, `${col}: ${e.n} филиалов, Σ|разница| ${fmt0(e.sum)}`, `${yr}: итог по услуге сходится, но распределение по филиалам в своде и модели различается.`, yr);
+        }
+        const st = stat.find((x) => x.year === yr && x.col === col); if (st) { st.brN = keys.size; st.brBad = bad; st.brSum = sum; }
+      }
+    }
+  }
+  /* S04 internal consistency */
+  for (const [tag, , yr, mo] of [['new', C, cfg.yCur, cfg.months[0]], ['old', P, cfg.yPrev, cfg.months[1]]]) {
+    if (allTot) for (const col of ['Revenue', 'Cost', 'ElementySetiCost']) {
+      const t = nz(allTot[tag + col]); const s = all.reduce((a, r) => a + nz(r[tag + col]), 0);
+      if (allTot[tag + col] != null && Math.abs(t - s) > 10) F.add('S04', 'Высокий', 'Свод', `Итоговая строка ${col}`, '', t - s, `итог ${fmt0(t)} / Σ строк ${fmt0(s)}`, `${yr}: итог свода не равен сумме строк.`, yr);
+    }
+    const g = svod['ГТС_СТС'];
+    if (g) for (const r of g.filter((x) => refStr(x.DimMemberRef4))) {
+      const d = nz(r[tag + 'GTS']) + nz(r[tag + 'STS']) + nz(r[tag + 'OTHER']) - nz(r[tag + 'Cost']);
+      if (Math.abs(d) > 1) F.add('S04', 'Высокий', 'Свод', `${refStr(r.DimMemberRef4)} ${r.dimMemberName4 || ''}`, '', d, 'ГТС + СТС + прочие ≠ Cost', `${yr}: разбивка ГТС/СТС не равна итогу.`, yr);
+    }
+    for (const r of all) {
+      const sq = nz(r[tag + 'SQ']); if (!sq) continue;
+      for (const [u, num] of [['UnitCost', 'Cost'], ['UnitRevenue', 'Revenue']]) {
+        if (r[tag + u] == null) continue; const v = nz(r[tag + u]), x = nz(r[tag + num]) / sq;
+        const close = (y) => Math.abs(y - v) <= 1 || Math.abs(y - v) / Math.max(Math.abs(v), 1) <= 0.01;
+        if (!close(x / mo) && !close(x)) F.add('S04', 'Средний', 'Свод', `${refStr(r.DimMemberRef4)} ${r.dimMemberName4 || ''}`, '', 0, `${u} ${fmt2(v)}`, `${yr}: ${u} не равен ${num}/SQ ни за месяц, ни за единицу.`, yr);
+      }
+    }
+  }
+  for (const r of all) for (const col of ['Revenue', 'SQ', 'Cost', 'UnitCost']) {
+    const o = nz(r['old' + col]), n = nz(r['new' + col]), p = r['p' + col];
+    if (p == null || !o) continue;
+    if (Math.abs(n / o - 1 - nz(p)) > 1e-3) F.add('S04', 'Средний', 'Свод', `${refStr(r.DimMemberRef4)} ${r.dimMemberName4 || ''}`, '', 0, `p${col} = ${nz(p).toFixed(4)}`, `p${col} не равен new/old − 1 (${(n / o - 1).toFixed(4)}).`);
+  }
+  /* S05 analytics */
+  for (const r of all) {
+    const k4 = refStr(r.DimMemberRef4), name = `${k4} ${r.dimMemberName4 || ''}`;
+    const uo = nz(r.oldUnitCost), un = nz(r.newUnitCost), nc = nz(r.newCost);
+    if (uo && un) { const ratio = un / uo;
+      if ((ratio < cfg.ucBand[0] || ratio > cfg.ucBand[1]) && Math.abs(nc) >= cfg.materiality)
+        F.add('S05', 'Высокий', 'Свод', name, '', nc * (1 - 1 / ratio), `с/с ед. ${fmt2(uo)} → ${fmt2(un)} (${fx(ratio)})`, 'Отчётная (сопоставимая) себестоимость единицы изменилась более чем вдвое.', cfg.yCur); }
+    const oc = nz(r.oldCost), orv = nz(r.oldRevenue), nrv = nz(r.newRevenue);
+    if (oc && nc && orv && nrv) { const mo = orv - oc, mn = nrv - nc;
+      if (Math.sign(mo) * Math.sign(mn) < 0 && Math.max(Math.abs(mo), Math.abs(mn)) >= cfg.materiality)
+        F.add('S05', 'Средний', 'Свод', name, '', mn, `маржа ${fmt0(mo)} → ${fmt0(mn)}`, `Услуга ${mn < 0 ? 'стала убыточной' : 'стала прибыльной'}. Проверить причину.`, cfg.yCur); }
+  }
+  return { rows, stat };
+}
+
+/* ---------------- entry ---------------- */
+self.onmessage = async (ev) => {
+  const { cur, prev, svod, cfg } = ev.data;
+  try {
+    const t0 = Date.now();
+    const C = await loadYear(cur, `${cfg.yCur} (текущий)`);
+    const P = await loadYear(prev, `${cfg.yPrev} (прошлый)`);
+    let S = null; if (svod) S = await loadSvod(svod);
+    log('Проверяю правила и сверяю данные…');
+    const R = analyse(C, P, cfg);
+    let recon = null;
+    if (S) recon = reconcile(S, C, P, R.last, cfg, R.F);
+    const findings = R.F.rows.sort((a, b) => b.score - a.score);
+    const sources = R.src.filter((o) => Math.abs(o.SC_C) >= cfg.materiality || o.mlFlag).map((o) => ({
+      stage: STR[o.s1], ref2: STR[o.s2], name2: STR[o.n2], ref4: STR[o.s4], name4: STR[o.n4], drv: o.drv,
+      scC: o.SC_C, scP: o.SC_P, costP: o.cost_P, ratioK: o.ratioK, tvd: o.tvd, links: o.links, newL: o.newL, goneL: o.goneL, ml: o.ml, mlFlag: o.mlFlag }))
+      .sort((a, b) => (isFinite(b.ml) ? b.ml : -1) - (isFinite(a.ml) ? a.ml : -1));
+    const services = R.svc.map((o) => ({ d2: o.d2, n2: o.n2, d4: o.d4, n4: o.n4, cC: o.cC, cP: o.cP, sqC: o.sqC, sqP: o.sqP, rvC: o.rvC, rvP: o.rvP,
+      ucC: o.ucC, ucP: o.ucP, ucRatio: o.ucRatio, ml: o.ml, mlFlag: o.mlFlag, mainDrv: o.mainDrv, nDrv: o.nDrv, dqfP: o.dqfP, dqfC: o.dqfC })).sort((a, b) => (isFinite(b.ml) ? b.ml : -1) - (isFinite(a.ml) ? a.ml : -1));
+    const summary = { rowsCur: C.n, rowsPrev: P.n, links: R.Mn, sources: R.src.length, services: R.svc.length, newLinks: R.newCnt, goneLinks: R.goneCnt,
+      k: cfg.k, kFact: R.modelIn[cfg.yCur] / R.modelIn[cfg.yPrev], costCur: R.modelOut[cfg.yCur], costPrev: R.modelOut[cfg.yPrev],
+      inCur: R.modelIn[cfg.yCur], inPrev: R.modelIn[cfg.yPrev], ucBase: R.ucBase, first: R.first, last: R.last,
+      files: { cur: cur.name, prev: prev.name, svod: svod ? svod.name : null }, sec: (Date.now() - t0) / 1000 };
+    if (recon) { summary.reconOk = recon.rows.filter((r) => r.ok).length; summary.reconBad = recon.rows.filter((r) => !r.ok).length; }
+    post('done', { summary, findings, flow: R.flow, recon, sources, services });
+  } catch (e) {
+    post('error', { msg: e && e.message ? e.message : String(e) });
+  }
+};
+
+</script>
+<script>
+'use strict';
+/* ---------------- state ---------------- */
+const $ = (s) => document.querySelector(s);
+const files = { cur: null, prev: null, svod: null };
+let RESULT = null, AI_TEXT = '', worker = null;
+const RULES = [
+  ['R00', 'Целостность', 'Сквозной баланс: вход первого этапа = выход последнего; каждый промежуточный объект распределяет то, что получил'],
+  ['R01', 'Целостность', 'Баланс источника: SourceCost = ΣCost'],
+  ['R03', 'Полнота', 'Есть затраты, а сумма драйвера равна 0'],
+  ['R04', 'Корректность', 'Отрицательные DQF, Cost, SQ, Revenue'],
+  ['R05', 'Сопоставимость', 'Новая связь с существенной суммой'],
+  ['R06', 'Сопоставимость', 'Драйвер обнулился'],
+  ['R07', 'Сопоставимость', 'Драйвер появился'],
+  ['R08', 'Сопоставимость', 'Сдвиг доли драйвера ≥ 10 п.п.'],
+  ['R09', 'Сопоставимость', 'Сдвиг структуры источника (TVD) ≥ 25%'],
+  ['R10', 'Сопоставимость', 'Затраты источника вне коридора ×0,5–×2 (с учётом k) или обнулились'],
+  ['R11', 'Экономика услуги', 'Себестоимость единицы вне коридора; затраты без объёма и дохода; доход без затрат'],
+  ['R12', 'Сопоставимость', 'Исчезнувшая связь: была в прошлом периоде, нет в текущем'],
+  ['R13', 'Сопоставимость', 'Смена вида драйвера у источника'],
+  ['S01', 'Сверка со сводом', 'Модель и свод по услугам: Cost, SQ, Revenue, затраты элементов сети'],
+  ['S02', 'Сверка со сводом', 'Модель и свод по филиалам × услугам'],
+  ['S03', 'Сверка со сводом', 'Позиция есть только в своде или только в модели'],
+  ['S04', 'Сверка со сводом', 'Внутренняя согласованность свода: итоги, ГТС + СТС, с/с ед., колонки p'],
+  ['S05', 'Сверка со сводом', 'Отчётная с/с единицы вне коридора; смена знака маржи'],
+  ['ML1', 'ИИ / ML', 'Isolation Forest по услугам: нетипичные услуги, которые правила не отметили'],
+  ['ML2', 'ИИ / ML', 'Isolation Forest по источникам: нетипичные источники, которые правила не отметили'],
+];
+const SEVS = ['Критично', 'Высокий', 'Средний', 'Инфо'];
+const nf0 = (v) => (v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('ru-RU'));
+const bn = (v) => (v == null || !isFinite(v) ? '—' : (v / 1e9).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------------- capabilities ---------------- */
+let downloads = null, sample = null;
+(async () => {
+  if (!window.claude?.use) { manualAI(); return; }
+  try { downloads = await window.claude.use('downloads'); } catch (e) { downloads = null; }
+  try { sample = await window.claude.use('sample'); } catch (e) { sample = null; }
+  if (!sample) manualAI();
+})();
+
+/* ---------------- file pickers ---------------- */
+function bindDrop(id, slot) {
+  const zone = $('#' + id), input = zone.querySelector('input');
+  const set = (f) => {
+    if (!f) return;
+    files[slot] = f;
+    zone.classList.add('has');
+    zone.querySelector('.fname').textContent = f.name;
+    zone.querySelector('.fsize').textContent = (f.size / 1048576).toFixed(1).replace('.', ',') + ' МБ';
+    if (/\.xls$/i.test(f.name)) zone.querySelector('.fsize').textContent += ' · старый формат .xls: сохраните как .xlsx';
+    updateRun();
+  };
+  input.addEventListener('change', () => set(input.files[0]));
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('over'); set(e.dataTransfer.files[0]); });
+}
+bindDrop('dz-cur', 'cur'); bindDrop('dz-prev', 'prev'); bindDrop('dz-svod', 'svod');
+function updateRun() {
+  const bad = [files.cur, files.prev, files.svod].some((f) => f && /\.xls$/i.test(f.name));
+  $('#runBtn').disabled = !(files.cur && files.prev) || bad;
+  $('#runHint').textContent = bad ? 'Файл .xls откройте в Excel и сохраните как «Книга Excel (.xlsx)».' : (files.cur && files.prev ? 'Готово к проверке.' : 'Выберите файлы текущего и прошлого периода.');
+}
+
+/* ---------------- run ---------------- */
+$('#runBtn').addEventListener('click', () => {
+  const cfg = {
+    yCur: $('#yCur').value.trim() || 'Текущий', yPrev: $('#yPrev').value.trim() || 'Прошлый',
+    k: parseFloat($('#kVal').value.replace(',', '.')) || 0,
+    months: [parseFloat($('#mCur').value) || 6, parseFloat($('#mPrev').value) || 12],
+    materiality: (parseFloat($('#mat').value.replace(',', '.')) || 10) * 1e6,
+    band: [0.5, 2], ucBand: [0.5, 2], tvd: 0.25, shift: 0.10, contamination: 0.03,
+  };
+  if (worker) worker.terminate();
+  worker = new Worker(URL.createObjectURL(new Blob([$('#worker-src').textContent], { type: 'text/javascript' })));
+  $('#runBtn').disabled = true; $('#progress').hidden = false; $('#results').hidden = true; $('#log').textContent = '';
+  $('#bar').style.width = '3%'; $('#pStatus').textContent = 'Читаю файлы…';
+  const t0 = Date.now(); let expect = 0;
+  worker.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.type === 'log') { $('#log').textContent += d.msg + '\n'; }
+    if (d.type === 'progress') {
+      const est = 530000; const part = d.label.startsWith(cfg.yCur) ? 0 : 1;
+      const p = Math.min(95, ((part + Math.min(1, d.rows / est)) / 2) * 90 + 3);
+      $('#bar').style.width = p + '%'; $('#pStatus').textContent = `${d.label}: ${d.rows.toLocaleString('ru-RU')} строк`;
+    }
+    if (d.type === 'error') { $('#pStatus').textContent = 'Ошибка: ' + d.msg; $('#bar').style.width = '0'; $('#runBtn').disabled = false; }
+    if (d.type === 'done') {
+      $('#bar').style.width = '100%'; $('#pStatus').textContent = `Готово за ${Math.round((Date.now() - t0) / 1000)} с.`;
+      RESULT = { ...d, cfg }; AI_TEXT = ''; render(); $('#copyExport').hidden = true; $('#runBtn').disabled = false; worker.terminate(); worker = null;
+    }
+  };
+  worker.postMessage({ cur: files.cur, prev: files.prev, svod: files.svod && !/\.xls$/i.test(files.svod.name) ? files.svod : null, cfg });
+});
+
+/* ---------------- render ---------------- */
+function countBy(f) { const o = {}; for (const r of f) { o[r.rule] ??= { n: 0, imp: 0, s: { 'Критично': 0, 'Высокий': 0, 'Средний': 0, 'Инфо': 0 } }; o[r.rule].s[r.sev]++; if (r.sev !== 'Инфо') { o[r.rule].n++; o[r.rule].imp += Math.abs(r.impact); } } return o; }
+function render() {
+  const { summary: S, findings, flow, recon, cfg } = RESULT;
+  $('#results').hidden = false;
+  const sev = { 'Критично': 0, 'Высокий': 0, 'Средний': 0 }; findings.forEach((f) => { if (f.sev in sev) sev[f.sev]++; });
+  const balOk = flow.every((r) => Math.abs(r.vin - r.vout) <= 1 || r.stage === S.first || r.stage === S.last) && Math.abs(S.inCur - S.costCur) <= 1 && Math.abs(S.inPrev - S.costPrev) <= 1;
+  const recOk = recon ? S.reconBad === 0 : null;
+  $('#kpis').innerHTML = `
+    <div class="kpi"><span class="lbl">Затраты модели ${esc(cfg.yCur)}</span><b>${bn(S.costCur)}</b><span class="sub">млрд ₸ · вход ${esc(S.first)} = выход ${esc(S.last)}</span></div>
+    <div class="kpi"><span class="lbl">Затраты модели ${esc(cfg.yPrev)}</span><b>${bn(S.costPrev)}</b><span class="sub">млрд ₸ · соотношение ${S.kFact.toFixed(3).replace('.', ',')} (k = ${cfg.k.toString().replace('.', ',')})</span></div>
+    <div class="kpi ${balOk ? 'ok' : 'bad'}"><span class="lbl">Баланс этапов</span><b>${balOk ? 'Сходится' : 'Расхождение'}</b><span class="sub">${S.links.toLocaleString('ru-RU')} связей, ${S.sources.toLocaleString('ru-RU')} источников</span></div>
+    <div class="kpi ${recOk == null ? '' : recOk ? 'ok' : 'warn'}"><span class="lbl">Сверка со сводом</span><b>${recOk == null ? 'Нет свода' : recOk ? 'Сходится' : S.reconBad + ' расх.'}</b><span class="sub">${recOk == null ? 'загрузите свод для сверки' : S.reconOk.toLocaleString('ru-RU') + ' позиций совпало'}</span></div>
+    <div class="kpi"><span class="lbl">Находки</span><b>${(sev['Критично'] + sev['Высокий'] + sev['Средний']).toLocaleString('ru-RU')}</b><span class="sub"><i class="dot crit"></i>${sev['Критично']} <i class="dot high"></i>${sev['Высокий']} <i class="dot med"></i>${sev['Средний']}</span></div>`;
+  // flow table
+  const yrs = [cfg.yPrev, cfg.yCur];
+  let h = '<table><thead><tr><th>Этап</th>' + yrs.map((y) => `<th class="n">Вход ${esc(y)}</th><th class="n">Выход ${esc(y)}</th>`).join('') + '<th>Статус</th></tr></thead><tbody>';
+  for (const st of [...new Set(flow.map((r) => r.stage))]) {
+    const rr = yrs.map((y) => flow.find((r) => r.year === y && r.stage === st));
+    const ok = rr.every((r) => Math.abs(r.vin - r.vout) <= 1);
+    const note = st === S.first ? 'вход в модель' : st === S.last ? 'себестоимость услуг' : ok ? 'вход = выход' : 'расхождение';
+    h += `<tr><td>${esc(st)}</td>${rr.map((r) => `<td class="n">${bn(r.vin)}</td><td class="n">${bn(r.vout)}</td>`).join('')}<td><span class="pill ${ok ? 'ok' : 'bad'}">${note}</span></td></tr>`;
+  }
+  $('#flow').innerHTML = h + '</tbody></table><p class="cap">млрд ₸. Итог модели — затраты, дошедшие до услуг; оборот по всем этапам не суммируется.</p>';
+  // recon
+  if (recon) {
+    let r = '<table><thead><tr><th>Период</th><th>Показатель</th><th class="n">Позиций</th><th class="n">Совпало</th><th class="n">Свод, млрд ₸</th><th class="n">Модель, млрд ₸</th><th class="n">По филиалам: расх.</th></tr></thead><tbody>';
+    for (const s of recon.stat) r += `<tr><td>${esc(s.year)}</td><td>${esc(s.col)}</td><td class="n">${s.n}</td><td class="n"><span class="pill ${s.bad ? 'warn' : 'ok'}">${s.ok}</span></td><td class="n">${s.col === 'SQ' ? nf0(s.sv) : bn(s.sv)}</td><td class="n">${s.col === 'SQ' ? nf0(s.md) : bn(s.md)}</td><td class="n">${s.brBad == null ? '—' : s.brBad}</td></tr>`;
+    r += '</tbody></table>';
+    const bad = recon.rows.filter((x) => !x.ok && x.level === 'Услуга');
+    if (bad.length) r += '<p class="cap">Расхождения по услугам:</p><table><thead><tr><th>Период</th><th>Услуга</th><th>Показатель</th><th class="n">Свод</th><th class="n">Модель</th><th class="n">Разница</th></tr></thead><tbody>' +
+      bad.slice(0, 50).map((x) => `<tr><td>${esc(x.year)}</td><td>${esc(x.svc)} ${esc(x.name)}</td><td>${esc(x.col)}</td><td class="n">${nf0(x.sv)}</td><td class="n">${nf0(x.md)}</td><td class="n">${nf0(x.d)}</td></tr>`).join('') + '</tbody></table>';
+    $('#recon').innerHTML = r;
+  } else $('#recon').innerHTML = '<p class="cap">Свод не загружен. Добавьте его, чтобы сверить модель с отчётностью.</p>';
+  // rules summary
+  const cb = countBy(findings);
+  $('#rules').innerHTML = '<table><thead><tr><th>Код</th><th>Проверка</th><th class="n">Критично</th><th class="n">Высокий</th><th class="n">Средний</th><th class="n">Влияние, млн ₸</th></tr></thead><tbody>' +
+    RULES.map(([c, , t]) => { const x = cb[c]; return `<tr><td><code>${c}</code></td><td>${esc(t)}</td>${['Критично', 'Высокий', 'Средний'].map((s) => `<td class="n">${x && x.s[s] ? x.s[s] : '·'}</td>`).join('')}<td class="n">${x && x.n ? nf0(x.imp / 1e6) : '·'}</td></tr>`; }).join('') + '</tbody></table>';
+  // filters
+  $('#fRule').innerHTML = '<option value="">Все правила</option>' + RULES.filter(([c]) => cb[c]).map(([c, , t]) => `<option value="${c}">${c} · ${esc(t.slice(0, 40))}</option>`).join('');
+  renderFindings();
+  $('#aiOut').innerHTML = ''; $('#aiOut').hidden = true;
+  $('#results').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+function renderFindings() {
+  const rule = $('#fRule').value, sv = $('#fSev').value, q = $('#fText').value.trim().toLowerCase();
+  const list = RESULT.findings.filter((f) => (!rule || f.rule === rule) && (!sv || f.sev === sv) && (!q || (f.obj + ' ' + f.desc + ' ' + f.metric).toLowerCase().includes(q)));
+  $('#fCount').textContent = `${list.length.toLocaleString('ru-RU')} из ${RESULT.findings.length.toLocaleString('ru-RU')}` + (list.length > 300 ? ' · показаны первые 300, все — в отчёте Excel' : '');
+  const cls = { 'Критично': 'crit', 'Высокий': 'high', 'Средний': 'med', 'Инфо': 'info' };
+  $('#findings').innerHTML = '<table class="ft"><thead><tr><th>Код</th><th>Уровень</th><th>Объект</th><th class="n">Влияние, ₸</th><th>Что не так</th></tr></thead><tbody>' +
+    list.slice(0, 300).map((f) => `<tr class="${cls[f.sev]}"><td><code>${f.rule}</code>${f.year ? `<span class="yr">${esc(f.year)}</span>` : ''}</td><td><span class="sev ${cls[f.sev]}">${f.sev}</span></td><td class="obj">${esc(f.obj)}${f.driver ? `<span class="drv">${esc(f.driver)}</span>` : ''}</td><td class="n">${nf0(f.impact)}</td><td>${esc(f.desc)}<span class="met">${esc(f.metric)}</span></td></tr>`).join('') + '</tbody></table>';
+}
+['#fRule', '#fSev'].forEach((s) => $(s).addEventListener('change', renderFindings));
+$('#fText').addEventListener('input', renderFindings);
+
+/* ---------------- AI ---------------- */
+const SYSTEM = `Ты — эксперт по раздельному учёту (РУ) доходов, затрат и задействованных активов телеком-оператора и по качеству данных драйверных (ABC) моделей распределения затрат.
+
+## Как устроена модель
+- Затраты движутся по этапам: Этап 1 (статьи затрат ЦФО) → Этапы 2–6 (персонал, процессы, поддерживающие функции, сети и оборудование) → Этап 7 (услуги — конечные объекты калькуляции).
+- Строка = связь «источник → получатель». Источник: srcRef1 (этап), srcRef2 (ЦФО), srcRef4 (статья/процесс). Получатель: dstRef1/2/4.
+- DQF — значение драйвера, DWF — весовой коэффициент (пусто = 1), DriverName — вид драйвера.
+- Итоговые затраты модели = затраты, вошедшие на первый этап = затраты, вышедшие на последний этап (услуги). Суммировать Cost по всем этапам нельзя.
+- Формула: Cost = SourceCost × (DQF·DWF) / Σ(DQF·DWF) по получателям источника.
+- SQ — объём услуги, Revenue — доход услуги. Себестоимость единицы = ΣCost / SQ.
+- Абсолютные изменения сравнивай с учётом коэффициента периода k, структуру (доли драйвера) — напрямую.
+
+## Сводные данные отчётности
+Свод — форма «old/new» по услугам (old = прошлый период, new = текущий; p = new/old − 1). Себестоимость единицы в своде сопоставима между периодами разной длины.
+
+## Коды проверок
+R00 сквозной баланс · R01 баланс SourceCost = ΣCost · R03 затраты при нулевой базе драйвера · R04 отрицательные значения · R05 новая связь · R06 драйвер обнулился · R07 драйвер появился · R08 сдвиг доли ≥10 п.п. · R09 сдвиг структуры источника (TVD) · R10 изменение затрат источника вне коридора · R11 аномалия себестоимости услуги · R12 исчезнувшая связь · R13 смена драйвера · S01–S02 расхождение модели и свода · S03 позиция только в своде или только в модели · S04 согласованность свода · S05 сопоставимая с/с единицы и смена знака маржи · ML1/ML2 аномалии Isolation Forest.
+
+## Задача
+Подготовь заключение для методолога РУ.
+1. Не выдумывай цифры и объекты — только входные данные. Если данных не хватает, так и напиши и укажи, какие нужны.
+2. Группируй связанные находки в проблемы (одна причина часто даёт несколько флагов).
+3. Для каждой проблемы: ошибка данных / изменение методологии или бизнеса / ложное срабатывание.
+4. Оценивай существенность в тенге и долю от затрат модели периода.
+
+## Структура ответа (Markdown, по-русски)
+### 1. Резюме (3–5 предложений)
+### 2. Сверка со сводом отчётности (если данные есть)
+### 3. Ключевые проблемы (5–10, по убыванию риска)
+Для каждой: название, коды правил, объекты, сумма, вероятная причина, классификация, что проверить, действие и ответственный.
+### 4. Быстрые исправления
+### 5. Предложения по настройке проверок`;
+
+function aiInput() {
+  const { summary: S, findings, cfg } = RESULT;
+  const cb = countBy(findings);
+  const stats = Object.entries(cb).map(([r, x]) => ({ правило: r, ...x.s, влияние_млн_тг: Math.round(x.imp / 1e6) }));
+  const perRule = {}; const top = [];
+  for (const f of findings) { if (f.sev === 'Инфо') continue; perRule[f.rule] = (perRule[f.rule] || 0) + 1; if (perRule[f.rule] <= 8 && top.length < 40) top.push(f); }
+  const info = findings.filter((f) => f.sev === 'Инфо').map((f) => `${f.rule}: ${f.obj} — ${f.metric}, ${Math.round(f.impact).toLocaleString('ru-RU')} ₸`);
+  const csv = 'Правило;Критичность;Год;Объект;Драйвер;Влияние_тг;Метрика;Описание\n' + top.map((f) => [f.rule, f.sev, f.year, f.obj, f.driver, Math.round(f.impact), f.metric, f.desc].map((v) => String(v).replace(/;/g, ',')).join(';')).join('\n');
+  const ctx = { текущий_период: cfg.yCur, прошлый_период: cfg.yPrev, k: cfg.k, фактическое_соотношение: +S.kFact.toFixed(3),
+    затраты_модели_текущий: Math.round(S.costCur), затраты_модели_прошлый: Math.round(S.costPrev), связей: S.links, источников: S.sources,
+    новых_связей: S.newLinks, исчезнувших_связей: S.goneLinks, свод_загружен: !!S.files.svod, сверка_совпало: S.reconOk ?? null, сверка_расхождений: S.reconBad ?? null };
+  let rec = '';
+  if (RESULT.recon) rec = '\n\n## Сверка со сводом по показателям\n' + RESULT.recon.stat.map((s) => `${s.year} ${s.col}: позиций ${s.n}, совпало ${s.ok}, свод ${Math.round(s.sv)}, модель ${Math.round(s.md)}, расхождений по филиалам ${s.brBad ?? '—'}`).join('\n');
+  return `${SYSTEM}\n\n---\n\n## Контекст прогона\n${JSON.stringify(ctx, null, 1)}\n\n## Статистика находок по правилам\n${JSON.stringify(stats)}\n\n## Сводные строки\n${info.join('\n')}${rec}\n\n## Топ находок (CSV, ; разделитель)\n${csv}\n\nСформируй заключение строго по структуре из инструкции.`;
+}
+function md(t) {
+  const lines = t.split('\n'); let html = '', inList = false;
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  for (const l of lines) {
+    const li = /^\s*[-*]\s+(.*)/.exec(l);
+    if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    const hh = /^(#{1,4})\s+(.*)/.exec(l);
+    if (hh) html += `<h4>${inline(hh[2])}</h4>`;
+    else if (l.trim()) html += `<p>${inline(l)}</p>`;
+  }
+  return html + (inList ? '</ul>' : '');
+}
+let aiCtl = null;
+$('#aiBtn').addEventListener('click', async () => {
+  if (!sample || !RESULT) return;
+  aiCtl = new AbortController(); const out = $('#aiOut'); out.hidden = false;
+  out.innerHTML = '<p class="cap">Claude анализирует находки. Обычно это 30–90 секунд.</p>';
+  $('#aiBtn').disabled = true; $('#aiStop').hidden = false;
+  try {
+    const { text } = await sample(aiInput(), { modelTier: 'complex', signal: aiCtl.signal, onText: ({ text }) => { out.innerHTML = md(text); } });
+    AI_TEXT = text; out.innerHTML = md(text);
+  } catch (e) {
+    if (e?.text) { AI_TEXT = e.text; out.innerHTML = md(e.text); }
+    const msg = { not_granted: 'Доступ к Claude не разрешён. Выводы ИИ пропущены, остальной отчёт готов.', rate_limited: 'Слишком много запросов. Подождите минуту и нажмите ещё раз.', cancelled: 'Остановлено.' }[e?.code] || 'Не удалось получить выводы ИИ. Отчёт можно скачать и без них.';
+    out.insertAdjacentHTML('beforeend', `<p class="cap warn-t">${msg}</p>`);
+  } finally { $('#aiBtn').disabled = false; $('#aiStop').hidden = true; }
+});
+$('#aiStop').addEventListener('click', () => aiCtl?.abort());
+/* ручной режим ИИ: страница открыта вне Claude (файл на компьютере, внутренний сайт) */
+function manualAI() { $('#aiBtn').hidden = true; $('#aiNote').textContent = ''; $('#aiManual').hidden = false; }
+$('#aiCopy').addEventListener('click', async () => {
+  if (!RESULT) return; const txt = aiInput(); const box = $('#aiPrompt');
+  box.value = txt; box.hidden = false;
+  try { await navigator.clipboard.writeText(txt); $('#aiCopyNote').textContent = 'Запрос скопирован. Вставьте его в чат Claude (или другого ИИ), а ответ — в поле ниже.'; }
+  catch (e) { box.focus(); box.select(); $('#aiCopyNote').textContent = 'Нажмите Ctrl+C, чтобы скопировать выделенный запрос. Затем вставьте его в чат ИИ, а ответ — в поле ниже.'; }
+});
+$('#aiApply').addEventListener('click', () => {
+  const t = $('#aiPaste').value.trim(); if (!t) { $('#aiCopyNote').textContent = 'Сначала вставьте ответ ИИ в поле.'; return; }
+  AI_TEXT = t; const out = $('#aiOut'); out.hidden = false; out.innerHTML = md(t);
+  $('#aiCopyNote').textContent = 'Выводы добавлены. Они попадут в отчёт Excel на лист «Выводы ИИ».';
+});
+
+/* ---------------- XLSX writer ---------------- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function deflate(u8) { const s = new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate-raw')); return new Uint8Array(await new Response(s).arrayBuffer()); }
+async function zip(filesArr) {
+  const enc = new TextEncoder(); const parts = [], central = []; let off = 0;
+  for (const [name, text] of filesArr) {
+    const nameB = enc.encode(name), raw = enc.encode(text), comp = await deflate(raw), crc = crc32(raw);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 8, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, comp.length, true); lh.setUint32(22, raw.length, true); lh.setUint16(26, nameB.length, true);
+    parts.push(new Uint8Array(lh.buffer), nameB, comp);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 8, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, comp.length, true); ch.setUint32(24, raw.length, true); ch.setUint16(28, nameB.length, true); ch.setUint32(42, off, true);
+    central.push(new Uint8Array(ch.buffer), nameB);
+    off += 30 + nameB.length + comp.length;
+  }
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, filesArr.length, true); e.setUint16(10, filesArr.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+const xe = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+const colL = (i) => { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+// styles: 0 normal, 1 header, 2 money, 3 pct, 4 num2, 5 bold, 6 wrap, 7 title, 8 italic grey, 9 crit, 10 high, 11 med
+const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0;(#,##0);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%"/><numFmt numFmtId="166" formatCode="#,##0.00"/></numFmts>
+<fonts count="5"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FF14453D"/><name val="Arial"/></font><font><i/><sz val="9"/><color rgb="FF6B7280"/><name val="Arial"/></font></fonts>
+<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF14453D"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8CBAD"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE699"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/></patternFill></fill></fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="12"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/><xf numFmtId="166" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf numFmtId="0" fontId="3" fillId="0" borderId="0" applyFont="1"/><xf numFmtId="0" fontId="4" fillId="0" borderId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="5" borderId="0" applyFill="1"/></cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+function sheetXml(sh) {
+  // sh: {rows: [[cell...]], widths:[], freeze: rowIndex, filter: {r0, c1}, validation: {ref, list}}
+  // cell: value | {v, s}
+  let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+  if (sh.freeze) x += `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`;
+  if (sh.widths) x += '<cols>' + sh.widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') + '</cols>';
+  x += '<sheetData>';
+  sh.rows.forEach((row, ri) => {
+    if (!row) return; x += `<row r="${ri + 1}">`;
+    row.forEach((c, ci) => {
+      if (c == null) return; const o = typeof c === 'object' ? c : { v: c }; if (o.v == null || o.v === '') { if (o.s) x += `<c r="${colL(ci)}${ri + 1}" s="${o.s}"/>`; return; }
+      const r = colL(ci) + (ri + 1), s = o.s ? ` s="${o.s}"` : '';
+      if (typeof o.v === 'number') { if (isFinite(o.v)) x += `<c r="${r}"${s}><v>${o.v}</v></c>`; }
+      else x += `<c r="${r}"${s} t="inlineStr"><is><t xml:space="preserve">${xe(o.v)}</t></is></c>`;
+    });
+    x += '</row>';
+  });
+  x += '</sheetData>';
+  if (sh.filter) x += `<autoFilter ref="A${sh.filter.r0}:${colL(sh.filter.c1)}${sh.filter.r1}"/>`;
+  if (sh.validation) x += `<dataValidations count="1"><dataValidation type="list" allowBlank="1" sqref="${sh.validation.ref}"><formula1>"${xe(sh.validation.list)}"</formula1></dataValidation></dataValidations>`;
+  return x + '</worksheet>';
+}
+async function buildXlsx(sheets) {
+  const wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+    sheets.map((s, i) => `<sheet name="${xe(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets>' +
+    (sheets.some((s) => s.filter) ? '<definedNames>' + sheets.map((s, i) => s.filter ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${xe(s.name)}'!$A$${s.filter.r0}:$${colL(s.filter.c1)}$${s.filter.r1}</definedName>` : '').join('') + '</definedNames>' : '') + '</workbook>';
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+    `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') + '</Types>';
+  const root = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  return zip([['[Content_Types].xml', ct], ['_rels/.rels', root], ['xl/workbook.xml', wb], ['xl/_rels/workbook.xml.rels', rels], ['xl/styles.xml', STYLES],
+    ...sheets.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, sheetXml(s)])]);
+}
+const H = (v) => ({ v, s: 1 }), MN = (v) => ({ v, s: 2 }), PC = (v) => ({ v, s: 3 }), N2 = (v) => ({ v, s: 4 }), BD = (v) => ({ v, s: 5 }), WR = (v) => ({ v, s: 6 }), TT = (v) => ({ v, s: 7 }), GR = (v) => ({ v, s: 8 });
+const SEVS_STYLE = { 'Критично': 9, 'Высокий': 10, 'Средний': 11 };
+
+function reportSheets() {
+  const { summary: S, findings, flow, recon, sources, services, cfg } = RESULT;
+  const cb = countBy(findings); const sheets = [];
+  // Сводка
+  const r = [[TT('Проверка качества данных модели РУ')], [GR(`${S.files.cur} (${cfg.yCur}) · ${S.files.prev} (${cfg.yPrev})` + (S.files.svod ? ` · свод: ${S.files.svod}` : '') + ` · ${new Date().toLocaleString('ru-RU')}`)], [],
+    [BD('Параметры и итоги')],
+    ['Связей (объединение двух периодов)', S.links], ['Источников', S.sources], ['Услуг с объёмом или доходом', S.services],
+    [`Новых связей ${cfg.yCur}`, S.newLinks], [`Исчезнувших связей (были в ${cfg.yPrev})`, S.goneLinks],
+    [`Затраты модели ${cfg.yCur} (вход ${S.first} = выход ${S.last}), ₸`, MN(S.costCur)], [`Затраты модели ${cfg.yPrev}, ₸`, MN(S.costPrev)],
+    ['Коэффициент периода k', N2(cfg.k)], [`Фактическое соотношение затрат ${cfg.yCur}/${cfg.yPrev}`, N2(S.kFact)], ['Порог существенности, ₸', MN(cfg.materiality)],
+    [GR('Итог модели — затраты, дошедшие до услуг. Оборот по всем этапам не суммируется: одни и те же затраты проходят несколько этапов.')], [],
+    [BD('Находки по правилам')], [H('Код'), H('Блок'), H('Проверка'), H('Критично'), H('Высокий'), H('Средний'), H('Инфо'), H('Влияние |₸|'), H('Доля от затрат модели')]];
+  for (const [c, b, t] of RULES) { const x = cb[c]; r.push([c, b, WR(t), x?.s['Критично'] || 0, x?.s['Высокий'] || 0, x?.s['Средний'] || 0, x?.s['Инфо'] || 0, MN(x?.imp || 0), PC((x?.imp || 0) / S.costCur)]); }
+  r.push([], [GR('Влияние разных правил может пересекаться: один объект бывает отмечен несколькими правилами.')]);
+  sheets.push({ name: 'Сводка', rows: r, widths: [48, 18, 60, 10, 10, 10, 8, 18, 14] });
+  // ИИ
+  if (AI_TEXT) sheets.push({ name: 'Выводы ИИ', widths: [140], rows: [[TT('Заключение ИИ по качеству данных')], [], ...AI_TEXT.split('\n').map((l) => { const t = l.replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#+\s*/, '').trim(); return t ? [/^#/.test(l) ? BD(t) : WR(t)] : null; })] });
+  // Баланс этапов
+  const fr = [[TT('Сквозной баланс: движение затрат по этапам')], [], [H('Период'), H('Этап'), H('Вход, ₸'), H('Выход, ₸'), H('Разница, ₸'), H('Комментарий')]];
+  for (const y of [cfg.yPrev, cfg.yCur]) {
+    for (const f of flow.filter((x) => x.year === y)) fr.push([y, f.stage, MN(f.vin), MN(f.vout), MN(f.vin - f.vout), f.stage === S.first ? 'первичные затраты (вход в модель)' : f.stage === S.last ? 'себестоимость услуг (выход модели)' : '']);
+    const inn = flow.find((x) => x.year === y && x.stage === S.first).vin, out = flow.find((x) => x.year === y && x.stage === S.last).vout;
+    fr.push([y, BD(`Проверка: вход ${S.first} − выход ${S.last}`), null, null, MN(inn - out), BD(Math.abs(inn - out) <= 1 ? 'Баланс сходится' : 'РАСХОЖДЕНИЕ')], []);
+  }
+  sheets.push({ name: 'Баланс этапов', rows: fr, widths: [10, 40, 22, 22, 16, 40] });
+  // Сверка
+  if (recon) {
+    const rr = [[TT('Сверка модели со сводом отчётности')], [GR('Допуск 1 ₸. Затраты элементов сети = затраты с Этапов 5–6.')], [],
+      [H('Период'), H('Показатель'), H('Позиций'), H('Совпало'), H('Расхождений'), H('Свод'), H('Модель'), H('Разница'), H('Строк филиал×услуга'), H('Расхождений по филиалам'), H('Σ|расхождений| по филиалам')]];
+    for (const s of recon.stat) rr.push([s.year, s.col, s.n, s.ok, s.bad, MN(s.sv), MN(s.md), MN(s.sv - s.md), s.brN ?? '', s.brBad ?? '', s.brSum == null ? '' : MN(s.brSum)]);
+    rr.push([], [BD('Расхождения (детально)')], [H('Период'), H('Уровень'), H('Филиал'), H('Услуга'), H('Наименование'), H('Показатель'), H('Свод'), H('Модель'), H('Разница')]);
+    for (const x of recon.rows.filter((x) => !x.ok)) rr.push([x.year, x.level, x.br, x.svc, x.name, x.col, MN(x.sv), MN(x.md), MN(x.d)]);
+    sheets.push({ name: 'Сверка со сводом', rows: rr, widths: [10, 18, 12, 13, 46, 16, 18, 18, 16, 16, 20] });
+  }
+  // Находки
+  const fh = ['Правило', 'Критичность', 'Уровень', 'Период', 'Объект', 'Драйвер', `DQF ${cfg.yPrev}`, `DQF ${cfg.yCur}`, 'Влияние, ₸', 'Метрика', 'Описание', 'Балл', 'Статус проверки', 'Комментарий методолога'];
+  const fRows = [fh.map(H), ...findings.map((f) => [f.rule, { v: f.sev, s: SEVS_STYLE[f.sev] }, f.level, f.year, f.obj, f.driver, N2(f.dqfP), N2(f.dqfC), MN(f.impact), f.metric, f.desc, N2(f.score), '', ''])];
+  sheets.push({ name: 'Находки', rows: fRows, widths: [9, 12, 10, 9, 70, 24, 18, 18, 18, 40, 70, 8, 22, 40], freeze: 1, filter: { r0: 1, c1: 13, r1: fRows.length },
+    validation: { ref: `M2:M${fRows.length}`, list: 'Ошибка — исправить,Изменение методологии,Ложное срабатывание,Исправлено' } });
+  // Услуги
+  const sh = ['ЦФО', 'Наим. ЦФО', 'Услуга', 'Наим. услуги', `Cost ${cfg.yCur}`, `Cost ${cfg.yPrev}`, 'Основной драйвер', `DQF ${cfg.yCur}`, `DQF ${cfg.yPrev}`, `SQ ${cfg.yCur}`, `SQ ${cfg.yPrev}`, `Revenue ${cfg.yCur}`, `Revenue ${cfg.yPrev}`, `С/с ед. ${cfg.yCur}`, `С/с ед. ${cfg.yPrev}`, 'Динамика с/с к базе', 'ML-балл', 'ML-аномалия'];
+  const sR = [sh.map(H), ...services.map((o) => [o.d2, o.n2, o.d4, o.n4, MN(o.cC), MN(o.cP), o.mainDrv + (o.nDrv > 1 ? ` (+${o.nDrv - 1} др.)` : ''), N2(o.dqfC), N2(o.dqfP), MN(o.sqC), MN(o.sqP), MN(o.rvC), MN(o.rvP), N2(o.ucC), N2(o.ucP), N2(o.ucRatio), N2(o.ml), o.mlFlag ? 'ДА' : ''])];
+  sheets.push({ name: 'Услуги', rows: sR, widths: [12, 28, 12, 44, 16, 16, 30, 18, 18, 12, 12, 16, 16, 14, 14, 12, 10, 10], freeze: 1, filter: { r0: 1, c1: 17, r1: sR.length } });
+  // Источники
+  const oh = ['Этап', 'ЦФО', 'Наим. ЦФО', 'Статья', 'Наим. статьи', 'Драйвер', `SourceCost ${cfg.yCur}`, `SourceCost ${cfg.yPrev}`, `ΣCost ${cfg.yPrev}`, 'Динамика к k', 'Сдвиг структуры (TVD)', 'Связей', 'Новых', 'Исчезнувших', 'ML-балл', 'ML-аномалия'];
+  const oR = [oh.map(H), ...sources.map((o) => [o.stage, o.ref2, o.name2, o.ref4, o.name4, o.drv, MN(o.scC), MN(o.scP), MN(o.costP), N2(o.ratioK), N2(o.tvd), o.links, o.newL, o.goneL, N2(o.ml), o.mlFlag ? 'ДА' : ''])];
+  sheets.push({ name: 'Источники', rows: oR, widths: [9, 12, 28, 14, 40, 22, 16, 16, 16, 10, 10, 8, 8, 10, 9, 10], freeze: 1, filter: { r0: 1, c1: 15, r1: oR.length } });
+  // Правила
+  sheets.push({ name: 'Правила', widths: [9, 18, 100], rows: [[H('Код'), H('Блок'), H('Проверка')], ...RULES.map(([a, b, c]) => [a, b, WR(c)]), [],
+    [BD('Параметры')], ['k', N2(cfg.k)], ['Месяцев в периодах', `${cfg.months[0]} / ${cfg.months[1]}`], ['Существенность, ₸', MN(cfg.materiality)], ['Коридор изменения', '×0,5 – ×2'], ['Порог TVD', '25%'], ['Порог сдвига доли', '10 п.п.'], ['Доля аномалий ML', '3%']] });
+  return sheets;
+}
+/* запасной экспорт: копирование листов в буфер обмена (для зрителей, которым скачивание недоступно) */
+const DEC = (() => { try { return new Intl.NumberFormat().formatToParts(1.5).find((p) => p.type === 'decimal').value; } catch (e) { return ','; } })();
+function sheetTsv(sh) {
+  return sh.rows.map((row) => (row || []).map((c) => {
+    const v = c != null && typeof c === 'object' ? c.v : c;
+    if (v == null) return '';
+    if (typeof v === 'number') return isFinite(v) ? String(v).replace('.', DEC) : '';
+    return String(v).replace(/[\t\r\n]+/g, ' ');
+  }).join('\t')).join('\r\n');
+}
+function showCopyExport() {
+  if (!RESULT) return; const box = $('#copyExport'); box.hidden = false;
+  const sheets = reportSheets(); const wrap = $('#copyBtns'); wrap.innerHTML = '';
+  sheets.forEach((sh) => {
+    const b = document.createElement('button'); b.className = 'ghost'; b.textContent = sh.name;
+    b.addEventListener('click', async () => {
+      const t = sheetTsv(sh); const ta = $('#copyArea');
+      try { await navigator.clipboard.writeText(t); ta.hidden = true; $('#copyNote').textContent = `Лист «${sh.name}» скопирован. В Excel создайте лист, выделите ячейку A1 и нажмите Ctrl+V.`; }
+      catch (e) { ta.value = t; ta.hidden = false; ta.focus(); ta.select(); $('#copyNote').textContent = `Лист «${sh.name}» выделен в поле ниже: нажмите Ctrl+C, затем вставьте в Excel в ячейку A1.`; }
+    });
+    wrap.appendChild(b);
+  });
+  box.scrollIntoView({ block: 'nearest' });
+}
+$('#dlBtn').addEventListener('click', async () => {
+  if (!RESULT) return;
+  const btn = $('#dlBtn'), note = $('#dlNote'); btn.disabled = true; note.textContent = 'Собираю отчёт…';
+  try {
+    const blob = await buildXlsx(reportSheets());
+    const safe = (s) => String(s).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '') || 'period';
+    const name = `DQ_report_${safe(RESULT.cfg.yCur)}_vs_${safe(RESULT.cfg.yPrev)}.xlsx`;
+    window.__lastReport = blob;
+    if (downloads) {
+      try { await downloads.save({ filename: name, data: blob }); note.textContent = 'Отчёт сохранён.'; }
+      catch (e) {
+        if (e?.code === 'declined') note.textContent = 'Сохранение отменено.';
+        else if (e?.code === 'rate_limited') note.textContent = 'Подождите немного и нажмите ещё раз.';
+        else { note.textContent = 'Скачивание файла здесь недоступно. Скопируйте листы отчёта ниже и вставьте их в Excel.'; showCopyExport(); }
+      }
+    } else {
+      if (window.navigator.msSaveOrOpenBlob) { window.navigator.msSaveOrOpenBlob(blob, name); }
+      else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new File([blob], name, { type: blob.type })); a.download = name; a.style.display = 'none';
+        document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+      }
+      note.textContent = 'Отчёт скачан в папку «Загрузки».';
+    }
+  } finally { btn.disabled = false; }
+});
+
+</script>
+
+</body></html>
